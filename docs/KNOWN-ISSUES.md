@@ -5,6 +5,6 @@
 - The native overlay stays on top while a selection is active. A system menu can delay keyboard focus. Click the overlay to resume keyboard interaction or right-click to cancel.
 - The native overlay bounds the virtual desktop to 64 megapixels and limits each selection dimension to fewer than 32,767 pixels.
 - The main window releases WebView2 on close. Editor-active memory and the startup distribution still need qualification.
-- The unsigned installer was produced locally. Validate installation, removal, offline runtime prerequisites, and signing on the release matrix.
+- The unsigned Phase 0 installer contains the original dashboard. The dashboard refresh is available as a standalone preview. Validate installation, upgrade, removal, offline runtime prerequisites, and signing on the release matrix.
 - Successful copy and paste to independent applications and the 1080p clipboard target remain unverified on the kickoff workstation.
 - The full annotation editor and PNG save belong to Phase 1.

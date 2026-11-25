@@ -4,6 +4,17 @@ The prototype is implemented with Tauri 2, React, TypeScript, Vite, Tailwind CSS
 
 On this workstation, the optimized executable is `.local/release-target/release/qapture.exe`. The unsigned x64 NSIS installer is `.local/release-target/release/bundle/nsis/Qapture_0.1.0_x64-setup.exe`. The executable launched and passed the desktop smoke test. Validation on a clean machine remains open.
 
+## Dashboard refresh
+
+The redesigned dashboard is available in the standalone preview at `.local/ui-refresh/Qapture.exe`. Its light and dark previews and the shortcut editor preview are in the same folder. The bundled installer contains the original Phase 0 dashboard.
+
+| Test type | Results |
+| --- | --- |
+| Automated source checks | Frontend lint, five Vitest tests, production bundle, Rust formatting, Clippy, and six Rust tests passed. |
+| Automated desktop checks | WebView2 validation covered the 720 × 600 dashboard, the compact 540 × 500 viewport, both themes, editing a shortcut, duplicate validation, and keyboard focus after save and Escape. |
+| Visual review | Reviewed screenshots of both themes and the compact shortcut editor from the running app. |
+| Unexecuted in this refresh | Native capture smoke, clipboard export, installer upgrade, and performance requalification. |
+
 ## Environment audit · 25 November 2026
 
 The active checkout was empty and had no Git metadata. The path from the brief did not exist on this workstation. Work was initialized in the active checkout at `C:\Users\User\Documents\GitHub\Qapture`, with local Git on `main`.

@@ -15,10 +15,10 @@
         "label": "main",
         "create": false,
         "title": "Qapture",
-        "width": 780,
-        "height": 700,
+        "width": 720,
+        "height": 600,
         "minWidth": 540,
-        "minHeight": 540,
+        "minHeight": 500,
         "center": true,
         "visible": false
       }

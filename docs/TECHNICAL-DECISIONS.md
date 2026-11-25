@@ -18,6 +18,10 @@ Select GDI for Phase 0 so a tray-resident app can capture on demand with no GPU 
 
 Use the Windows device-independent bitmap format to provide native-size pixels and common paste compatibility. Mark the result for exclusion from built-in Windows clipboard history and cloud sync. [Windows clipboard formats](https://learn.microsoft.com/en-us/windows/win32/dataxchg/clipboard-formats)
 
+## Dashboard shortcut editing
+
+Keep shortcut editing within the dashboard. An inline editor gives each action a clear edit control and keeps its current binding visible for reference. Shortcut validation and persistence continue through the existing native command.
+
 ## Alternative stack
 
 If measured WebView2 overhead or window lifecycle behavior blocks agreed targets, compare C# with WPF and Win32 interop using the same fixture. WPF could replace the dashboard and editor host and would still need native capture, DPI, and clipboard integration. Switching the primary stack requires Product Owner approval.

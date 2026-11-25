@@ -10,4 +10,8 @@ Use indigo `#6254E8` for primary actions and focus emphasis. Pair dark ink with 
 | Dashboard | Capture entry points, recent operation status, access to shortcut settings |
 | Settings | Shortcut bindings, conflict feedback, system appearance in Phase 0 |
 
+The dashboard opens at 720 × 600 logical pixels. It stacks the two capture actions in priority order, with the active shortcut at the end of each row. Light and dark themes follow the system.
+
+The shortcut list shows current bindings next to a labeled **Edit** button. The editor opens within the selected row and focuses the input. It shows errors next to that input and returns focus to the row’s **Edit** button after save or cancellation.
+
 Phase 1 should preserve IME composition in multiline text. Prefer Segoe UI with Windows Thai font fallback, test common Thai diacritics and line layouts, and keep destructive actions explicit.
