@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+target/
+.local/
+.xwin-cache/
+*.log
+*.tsbuildinfo
+.env*
+Thumbs.db
