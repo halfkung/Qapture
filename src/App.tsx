@@ -146,7 +146,7 @@ export function App() {
   const status = error || (editingCapture ? 'Capture open in Quick editor' : busy ? 'Capture in progress…' : last?.message)
 
   return (
-    <>
+    <div className="dashboard-shell">
       <header className="app-header">
         <div className="brand content-width">
           <img src={icon} alt="" width="28" height="28" />
@@ -155,7 +155,7 @@ export function App() {
         </div>
       </header>
 
-      <main className="dashboard content-width">
+      <main className="dashboard">
         <section aria-labelledby="capture-heading">
           <div className="capture-hero">
             <div className="hero-copy">
@@ -272,6 +272,6 @@ export function App() {
           {busy && !editingCapture && <button className="text-button" onClick={() => void invoke('cancel_capture').catch((problem) => setError(String(problem)))}>Cancel</button>}
         </div>
       </main>
-    </>
+    </div>
   )
 }

@@ -12,6 +12,8 @@ Use indigo `#6254E8` for primary actions and focus emphasis. Pair dark ink with 
 
 The dashboard opens at 720 × 620 logical pixels. A window-and-selection illustration conveys the capture workflow. Two action cards link directly to region capture and full desktop copy. The header links to shortcut settings. Light and dark themes follow the system.
 
+The default dashboard fits at both the opening size and the 540 × 500 minimum. The header stays in place when expanded settings or errors require the content pane to scroll. The pane keeps its scrollbar hidden and can still be scrolled by mouse, touch, or keyboard focus.
+
 The shortcut list shows current bindings next to a labeled **Edit** button. The selected row focuses a keyboard recorder and displays a valid key combination as keycaps as soon as it is pressed. Validation appears next to the recorder. Saving or cancelling returns focus to **Edit**.
 
 Phase 1 should preserve IME composition in multiline text. Prefer Segoe UI with Windows Thai font fallback, test common Thai diacritics and line layouts, and keep destructive actions explicit.

@@ -22,6 +22,8 @@ Use the Windows device-independent bitmap format to provide native-size pixels a
 
 Keep shortcut editing within the dashboard with a focusable key recorder. While the focused dashboard is recording, Qapture routes its own registered hotkeys into the recorder. Native validation and persistence remain in the shortcut service.
 
+Use a fixed-height dashboard shell with a separate content pane. Compact spacing fits the idle layout at the native minimum size. The pane remains scrollable when form content grows and keeps the scrollbar hidden.
+
 ## Selection and quick editor
 
 Paint the backdrop from a pre-dimmed GDI bitmap and paint the selection from the original snapshot. This gives the same dimming across monitors and keeps the selected pixels unchanged. Crop on pointer release and pass only the crop through Tauri's binary IPC to an editor-only capability. Use a second Canvas 2D layer for vector marks and keep the original pixels separately. Reuse the native Windows clipboard path for the composited image.

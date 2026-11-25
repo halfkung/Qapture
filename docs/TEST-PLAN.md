@@ -12,6 +12,8 @@ Add `-TestClipboard` on a test desktop with an empty clipboard to check successf
 
 | Desktop scenario | Expected result |
 | --- | --- |
+| Open and resize the dashboard | Capture actions and both shortcut rows fit at the default and minimum sizes without scrollbars |
+| Edit the lower shortcut at minimum window size | The editor scrolls into view with the header still visible, and cancelling restores the idle layout |
 | App open and dropdown expanded | Frozen image contains the visible surface present at trigger time |
 | Drag both directions | The selection stays bright, surrounding pixels dim, and mouse release opens the exact crop in the editor |
 | Draw and undo in the editor | Marks appear at the intended location and undo restores the original pixels |

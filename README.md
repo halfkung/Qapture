@@ -4,7 +4,11 @@
 
 Qapture is a local-first Windows capture and markup app. Its quick editor lets you mark up a selected region and copy it at native resolution.
 
-## Use the prototype
+## Install or update
+
+Run the x64 NSIS installer for the new version. To update an existing installation, choose **Quit Qapture** in the tray before running the installer, and select the option to keep the existing installation if prompted. The installer and a standalone executable are listed in [project status](docs/PROJECT-STATUS.md).
+
+## Use Qapture
 
 1. Launch `qapture.exe`. You can close the dashboard and continue capturing from the tray.
 2. Press **Ctrl+Shift+F9** and drag a region. The selection stays bright while the desktop around it is dimmed. Release the mouse to open the quick editor, where you can use a pen, rectangle, or arrow and then select **Copy image** or press **Ctrl+C**. Press **Esc** in the overlay to cancel or in the editor to close it.
@@ -33,7 +37,5 @@ npm run tauri -- build
 ```
 
 Launch `src-tauri/target/release/qapture.exe` after a conventional release build. The NSIS bundle is under `src-tauri/target/release/bundle/nsis`. Pass `--tray` to the executable to start without creating the dashboard.
-
-In the kickoff workspace, the built executable and installer are under `.local/release-target/release`. See the [project status](docs/PROJECT-STATUS.md) for the paths and benchmarks.
 
 See the [project status](docs/PROJECT-STATUS.md) for verified results and the [test plan](docs/TEST-PLAN.md) for interactive checks.

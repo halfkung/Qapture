@@ -2,18 +2,18 @@
 
 The prototype is implemented with Tauri 2, React, TypeScript, Vite, Tailwind CSS, and Rust. It includes tray capture, a single-instance dashboard, persistent shortcuts, native desktop capture and region selection, and native-resolution clipboard export. After the Phase 0 review, the capture UX preview added the initial quick editor.
 
-On this workstation, the optimized executable is `.local/release-target/release/qapture.exe`. The unsigned x64 NSIS installer is `.local/release-target/release/bundle/nsis/Qapture_0.1.0_x64-setup.exe`. The executable launched and passed the desktop smoke test. Validation on a clean machine remains open.
+## 0.1.1 release
 
-## Capture UX preview
+The standalone Windows executable is `.local/release-0.1.1/Qapture.exe`. The unsigned x64 NSIS installer is `.local/release-0.1.1/Qapture_0.1.1_x64-setup.exe`. The installer retains the original application identifier and settings location.
 
-The current standalone preview is `.local/capture-studio/Qapture.exe`. The dashboard shows illustrated capture controls and records shortcuts from key presses. Region capture dims the surrounding desktop and opens the editor on release. The editor provides pen, rectangle, arrow, undo, redo and clipboard copy. The bundled installer contains the original Phase 0 build.
+The dashboard shows illustrated capture controls and records shortcuts from key presses. Its idle content fits at the default and minimum sizes without scrollbars. Region capture dims the surrounding desktop and opens the editor on release. The editor provides pen, rectangle, arrow, undo, redo and clipboard copy.
 
 | Test type | Results |
 | --- | --- |
-| Automated source checks | Frontend lint, eight Vitest tests, production bundle, Rust formatting, Clippy, and ten Rust tests passed. The optimized preview built successfully. |
-| Automated desktop checks | An isolated Windows debug build verified both themes and compact layout, pressed-key recording and persistence, routing a registered Qapture key into the recorder, dimming and unchanged selected pixels, editor handoff, native image dimensions and color across the monitor seam, drawing tools and undo/redo, protected clipboard contention, and the return to the dashboard. |
-| Visual review | Reviewed both dashboard themes from the running Windows build. Preview images use the isolated test shortcuts. |
-| Unexecuted in this preview | Successful copy/paste, updated capture benchmarks, installer upgrade and clean-machine testing. The existing clipboard item was preserved. |
+| Automated source checks | Frontend lint, nine Vitest tests, production bundle, Rust formatting, Clippy, and ten Rust tests passed. |
+| Dashboard 0.1.1 | An isolated Windows build verified both themes at 720 × 620 and 540 × 500. Every idle control fit without scrolling. Expanding the lower shortcut form scrolled the content while the header stayed visible and no scrollbar appeared. |
+| Capture workflow | The preceding isolated preview verified key recording and persistence, dimming and unchanged selected pixels, editor handoff, native dimensions and colors across the monitor seam, drawing and undo/redo, protected clipboard contention, and the return to the dashboard. |
+| Unexecuted | Successful copy/paste, updated capture benchmarks, an in-place installer upgrade, and clean-machine installation. The existing installation and clipboard were left intact during testing. |
 
 ## Environment audit · 25 November 2026
 

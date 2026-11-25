@@ -5,6 +5,10 @@ import { App } from './App'
 describe('dashboard controls', () => {
   const markup = renderToStaticMarkup(<App />)
 
+  it('keeps the header outside the dashboard content scroll region', () => {
+    expect(markup).toMatch(/<div class="dashboard-shell"><header class="app-header">.*?<\/header><main class="dashboard">/)
+  })
+
   it('shows both capture actions while native settings load', () => {
     expect(markup).toMatch(/<button[^>]+class="capture-card region"[^>]+disabled=""[^>]*>.*Capture a region/)
     expect(markup).toMatch(/<button[^>]+class="capture-card full"[^>]+disabled=""[^>]*>.*Copy full desktop/)

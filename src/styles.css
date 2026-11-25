@@ -53,6 +53,13 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); out
   margin-inline: auto;
 }
 
+.dashboard-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100dvh;
+  overflow: hidden;
+}
+
 .app-header {
   border-bottom: 1px solid var(--line);
   background: var(--surface);
@@ -81,7 +88,13 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); out
 }
 .settings-link:hover { color: var(--accent); background: var(--tint); }
 .settings-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.dashboard { padding-block: 23px 21px; }
+.dashboard {
+  min-width: 0;
+  overflow: auto;
+  scrollbar-width: none;
+  padding: 23px max(32px, calc((100% - 660px) / 2)) 21px;
+}
+.dashboard::-webkit-scrollbar { display: none; }
 
 .capture-hero {
   position: relative;
@@ -284,20 +297,21 @@ kbd {
 
 .capture-status { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 8px; }
 .capture-status:has(.status-message:not(:empty)) { margin-top: 13px; }
-.status-message { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+.status-message { display: flex; align-items: center; gap: 6px; min-width: 0; overflow-wrap: anywhere; color: var(--muted); font-size: 13px; }
 .status-message svg { color: var(--accent); flex: none; }
 .capture-status > button { font-size: 13px; }
 
 @media (max-width: 540px) {
   .content-width { width: calc(100% - 40px); }
-  .dashboard { padding-top: 24px; }
+  .dashboard { padding: 24px 20px 21px; }
 }
 
 @media (max-height: 545px) {
-  .dashboard { padding-top: 15px; }
+  .dashboard { padding-block: 14px 12px; }
   .capture-hero { min-height: 132px; }
   .capture-card { min-height: 84px; padding-block: 9px; }
   .settings { margin-top: 17px; }
+  .settings-heading { margin-bottom: 9px; }
   .shortcut-row { min-height: 51px; }
 }
 
