@@ -1,0 +1,14 @@
+{
+  "identifier": "dashboard",
+  "description": "Local dashboard capture and shortcut controls",
+  "windows": ["main"],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "allow-dashboard-info",
+    "allow-dashboard-ready",
+    "allow-start-capture",
+    "allow-cancel-capture",
+    "allow-set-shortcut"
+  ]
+}

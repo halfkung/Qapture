@@ -1,0 +1,142 @@
+@import "tailwindcss";
+
+:root {
+  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light dark;
+  --background: #f7f7fc;
+  --ink: #191628;
+  --muted: #565368;
+  --surface: #fff;
+  --line: #e3e0ed;
+  --tint: #f1eefc;
+  --accent: #5546d5;
+  --key: #f5f4fa;
+  --error: #9d2442;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #14131d;
+    --ink: #f5f2ff;
+    --muted: #b4afc7;
+    --surface: #1e1b2c;
+    --line: #38344a;
+    --tint: #302846;
+    --accent: #c4b6ff;
+    --key: #272339;
+    --error: #ff9fb1;
+  }
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  background: var(--background);
+}
+
+button { cursor: pointer; }
+button:disabled { opacity: .65; cursor: wait; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+
+.dashboard { width: min(100%, 770px); padding: 27px clamp(24px, 5vw, 55px) 24px; margin-inline: auto; }
+.brand { display: flex; align-items: center; gap: 11px; font-size: 18px; font-weight: 700; letter-spacing: -.03em; }
+.capture { margin-top: 29px; }
+h1 { font-size: clamp(30px, 5.5vw, 43px); line-height: 1.06; font-weight: 720; letter-spacing: -.055em; }
+.intro { color: var(--muted); margin-top: 10px; font-size: 14px; }
+.capture-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; margin-top: 21px; }
+.capture-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 162px;
+  padding: 14px 16px;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  transition: box-shadow 140ms ease, border-color 140ms ease;
+}
+.capture-card.region {
+  background: linear-gradient(145deg, #6254e8, #4d3ec8);
+  border-color: #6254e8;
+  color: #fff;
+}
+.capture-card:not(:disabled):hover { border-color: #9587fd; box-shadow: 0 5px 20px #5349bb23; }
+.action-top { display: flex; align-items: flex-start; justify-content: space-between; width: 100%; }
+.action-icon {
+  width: 37px;
+  height: 37px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: var(--accent);
+  background: var(--tint);
+}
+.region .action-icon { color: white; background: #ffffff29; }
+.action-title { margin-top: 10px; font-weight: 680; font-size: 17px; letter-spacing: -.022em; }
+.action-detail { color: var(--muted); font-size: 12px; }
+.region .action-detail { color: #f7f4ff; }
+.capture-card > .keys { margin-top: auto; padding-top: 11px; }
+.keys { display: inline-flex; gap: 4px; align-items: center; white-space: nowrap; }
+kbd {
+  font: 600 11px/1.2 "Segoe UI", sans-serif;
+  padding: 3px 6px;
+  color: var(--ink);
+  background: var(--key);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+.region kbd { color: white; background: #ffffff24; border-color: #ffffff69; }
+.settings { margin-top: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: 15px; }
+.settings-heading { display: flex; align-items: center; gap: 11px; padding: 14px 16px; }
+.settings-heading h2 { font-size: 15px; line-height: 1.2; font-weight: 700; }
+.settings-heading p { color: var(--muted); font-size: 12px; margin-top: 3px; }
+.keyboard-icon { color: var(--accent); background: var(--tint); border-radius: 8px; padding: 8px; }
+.shortcut-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  border-top: 1px solid var(--line);
+  padding: 5px 16px;
+  font-size: 13px;
+}
+.shortcut-row small { display: block; margin-top: 3px; }
+.shortcut-button {
+  padding: 4px 8px;
+  min-height: 32px;
+  min-width: 133px;
+  white-space: nowrap;
+  font-size: 12px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+}
+.shortcut-button:hover, .shortcut-button.recording { border-color: var(--line); background: var(--tint); color: var(--accent); }
+.shortcut-form { padding: 2px 16px 10px; display: flex; align-items: end; flex-wrap: wrap; gap: 10px; font-size: 12px; }
+.shortcut-form label { display: grid; gap: 3px; color: var(--muted); flex: 1; }
+.shortcut-form input { height: 31px; width: 100%; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); padding-inline: 8px; }
+.shortcut-form input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.shortcut-form button { min-height: 31px; }
+.save-button { background: #5546d5; color: white; padding-inline: 12px; border-radius: 6px; font-weight: 600; }
+.notice { padding: 8px 16px 12px; border-top: 1px solid var(--line); font-size: 12px; }
+.error { color: var(--error); }
+footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px 14px;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 16px;
+}
+footer p, .status { display: flex; gap: 6px; align-items: center; }
+footer svg { flex: none; color: var(--accent); }
+.text-button { color: var(--accent); text-decoration: underline; }
+
+@media (max-width: 560px) {
+  .dashboard { padding-inline: 20px; }
+  .capture-actions { gap: 8px; }
+  .capture-card { padding-inline: 12px; }
+}

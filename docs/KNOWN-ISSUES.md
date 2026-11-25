@@ -2,5 +2,9 @@
 
 - The GDI backend can omit content excluded by Windows, DRM, or GPU overlay mechanisms. HDR color fidelity and remote desktop behavior are unverified.
 - The Phase 0 prototype will need testing across Windows 10, 4K, 200% scaling, portrait displays, and graphics driver combinations.
-- WebView2 contributes to startup and idle memory. Measure it with the dashboard visible and hidden.
+- The native overlay stays on top while a selection is active. A system menu can delay keyboard focus. Click the overlay to resume keyboard interaction or right-click to cancel.
+- The native overlay bounds the virtual desktop to 64 megapixels and limits each selection dimension to fewer than 32,767 pixels.
+- The main window releases WebView2 on close. Editor-active memory and the startup distribution still need qualification.
+- The unsigned installer was produced locally. Validate installation, removal, offline runtime prerequisites, and signing on the release matrix.
+- Successful copy and paste to independent applications and the 1080p clipboard target remain unverified on the kickoff workstation.
 - The full annotation editor and PNG save belong to Phase 1.

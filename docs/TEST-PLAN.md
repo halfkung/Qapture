@@ -2,6 +2,14 @@
 
 Run the frontend and Rust checks in the [README](../README.md). Record automated unit and interactive desktop results independently.
 
+Run the automated Windows smoke check from an unlocked test desktop with Qapture closed and the default shortcuts available. The fixture briefly takes focus and moves the pointer. It reads only known fixture pixels and logs only outcomes and timings.
+
+```powershell
+powershell.exe -NoProfile -STA -File scripts/Test-Desktop.ps1 -Executable src-tauri/target/release/qapture.exe
+```
+
+Add `-TestClipboard` on a test desktop with an empty clipboard to check successful region and full-desktop copies. The default run exercises clipboard contention without replacing the current clipboard item. To check interoperability manually, paste a controlled capture into Paint and compare its dimensions with the overlay.
+
 | Desktop scenario | Expected result |
 | --- | --- |
 | App open and dropdown expanded | Frozen image contains the visible surface present at trigger time |
