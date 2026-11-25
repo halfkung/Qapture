@@ -16,11 +16,22 @@
         "create": false,
         "title": "Qapture",
         "width": 720,
-        "height": 600,
+        "height": 620,
         "minWidth": 540,
         "minHeight": 500,
         "center": true,
         "visible": false
+      },
+      {
+        "label": "editor",
+        "create": false,
+        "title": "Qapture — Quick editor",
+        "url": "index.html?view=editor",
+        "width": 1000,
+        "height": 720,
+        "minWidth": 620,
+        "minHeight": 480,
+        "center": true
       }
     ],
     "security": {

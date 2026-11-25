@@ -1,10 +1,10 @@
 use std::sync::{
     Mutex,
-    atomic::{AtomicU32, Ordering},
+    atomic::{AtomicBool, AtomicU32, Ordering},
 };
 
 use serde::Serialize;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 use crate::{
@@ -28,6 +28,7 @@ pub struct Shortcuts {
     status: Mutex<ShortcutStatus>,
     region_id: AtomicU32,
     full_id: AtomicU32,
+    recording: AtomicBool,
 }
 
 impl Shortcuts {
@@ -45,11 +46,16 @@ impl Shortcuts {
             }),
             region_id: AtomicU32::new(0),
             full_id: AtomicU32::new(0),
+            recording: AtomicBool::new(false),
         }
     }
 
     pub fn status(&self) -> ShortcutStatus {
         self.status.lock().unwrap().clone()
+    }
+
+    pub fn set_recording(&self, recording: bool) {
+        self.recording.store(recording, Ordering::Release);
     }
 
     fn id(&self, mode: Mode) -> &AtomicU32 {
@@ -62,10 +68,21 @@ impl Shortcuts {
     fn register(app: &AppHandle, mode: Mode, shortcut: Shortcut) -> Result<(), String> {
         app.global_shortcut()
             .on_shortcut(shortcut, move |app, key, event| {
+                let shortcuts = app.state::<Shortcuts>();
                 if event.state() == ShortcutState::Pressed
-                    && app.state::<Shortcuts>().id(mode).load(Ordering::Acquire) == key.id()
+                    && shortcuts.id(mode).load(Ordering::Acquire) == key.id()
                 {
-                    session::start_background(app, mode, false);
+                    if shortcuts.recording.load(Ordering::Acquire)
+                        && app
+                            .get_webview_window("main")
+                            .is_some_and(|window| window.is_focused().unwrap_or(false))
+                    {
+                        // Windows routes already-registered keys to us before the WebView sees them.
+                        let _ =
+                            app.emit_to("main", "qapture-shortcut-recorded", recorded_binding(key));
+                    } else {
+                        session::start_background(app, mode, false);
+                    }
                 }
             })
             .map_err(|error| {
@@ -135,6 +152,21 @@ impl Shortcuts {
     }
 }
 
+fn recorded_binding(shortcut: &Shortcut) -> String {
+    let key = shortcut.key.to_string();
+    [
+        (Modifiers::CONTROL, "Ctrl"),
+        (Modifiers::ALT, "Alt"),
+        (Modifiers::SHIFT, "Shift"),
+        (Modifiers::SUPER, "Super"),
+    ]
+    .into_iter()
+    .filter_map(|(modifier, label)| shortcut.mods.contains(modifier).then_some(label))
+    .chain(std::iter::once(key.as_str()))
+    .collect::<Vec<_>>()
+    .join("+")
+}
+
 fn set_active(status: &mut ShortcutStatus, mode: Mode, error: Option<String>) {
     match mode {
         Mode::Region => {
@@ -172,5 +204,9 @@ mod tests {
         assert!(parse("Ctrl+Shift+").is_err());
         assert!(parse("Ctrl+KeyQ").is_ok());
         assert_eq!(parse("ctrl+shift+F9"), parse("Shift+Control+F9"));
+        assert_eq!(
+            recorded_binding(&parse("Shift+Control+F9").unwrap()),
+            "Ctrl+Shift+F9"
+        );
     }
 }

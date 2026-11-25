@@ -13,17 +13,15 @@ use windows_sys::Win32::{
     Graphics::{
         Dwm::DwmFlush,
         Gdi::{
-            AC_SRC_OVER, AlphaBlend, BLENDFUNCTION, BeginPaint, BitBlt, CreateFontW,
-            CreateSolidBrush, DEFAULT_CHARSET, DT_CENTER, DT_NOPREFIX, DT_SINGLELINE, DT_VCENTER,
-            DeleteObject, DrawTextW, EndPaint, FillRect, FrameRect, HDC, HFONT, InvalidateRect,
-            PAINTSTRUCT, SRCCOPY, SelectObject, SetBkMode, SetTextColor, TRANSPARENT, UpdateWindow,
+            BeginPaint, BitBlt, CreateFontW, CreateSolidBrush, DEFAULT_CHARSET, DT_CENTER,
+            DT_NOPREFIX, DT_SINGLELINE, DT_VCENTER, DeleteObject, DrawTextW, EndPaint, FillRect,
+            FrameRect, HDC, HFONT, InvalidateRect, PAINTSTRUCT, SRCCOPY, SelectObject, SetBkMode,
+            SetTextColor, TRANSPARENT, UpdateWindow,
         },
     },
     System::LibraryLoader::GetModuleHandleW,
     UI::{
-        Input::KeyboardAndMouse::{
-            GetKeyState, ReleaseCapture, SetCapture, SetFocus, VK_CONTROL, VK_ESCAPE, VK_RETURN,
-        },
+        Input::KeyboardAndMouse::{ReleaseCapture, SetCapture, SetFocus, VK_ESCAPE},
         WindowsAndMessaging::*,
     },
 };
@@ -40,12 +38,10 @@ const CLASS_NAME: &str = "QaptureSelectionOverlay";
 const CANCEL_TIMER: usize = 1;
 const PANEL_BG: u32 = 0x24201c;
 const PANEL_FG: u32 = 0xfff8f4;
-const ACCENT: u32 = 0xe85462;
-const BORDER: u32 = 0xffc5b5;
+const BORDER: u32 = 0xffe3ce;
 
 struct Chrome {
     panel: Rect,
-    button: Rect,
     font: HFONT,
 }
 
@@ -70,12 +66,6 @@ impl Chrome {
             right: left + panel_width,
             bottom: top + px(52),
         };
-        let button = Rect {
-            left: panel.right - px(112).min(panel_width / 3),
-            right: panel.right - px(8),
-            top: panel.top + px(8),
-            bottom: panel.bottom - px(8),
-        };
         let font = unsafe {
             CreateFontW(
                 -px(15),
@@ -97,11 +87,7 @@ impl Chrome {
         if font.is_null() {
             return Err(os_error("Creating the selection overlay font"));
         }
-        Ok(Self {
-            panel,
-            button,
-            font,
-        })
+        Ok(Self { panel, font })
     }
 }
 
@@ -129,7 +115,6 @@ struct Overlay<'a> {
     shade: Dib,
     chrome: Chrome,
     drag: Cell<Option<Drag>>,
-    selection: Cell<Option<Rect>>,
     result: Cell<Option<Rect>>,
 }
 
@@ -138,7 +123,6 @@ impl Overlay<'_> {
         self.drag
             .get()
             .map(Drag::rect)
-            .or(self.selection.get())
             .filter(|rect| rect.has_area())
     }
 
@@ -155,13 +139,6 @@ impl Overlay<'_> {
         unsafe { InvalidateRect(window, &self.chrome.panel.into(), 0) };
     }
 
-    fn copy_and_close(&self, window: HWND) {
-        if let Some(rect) = self.selection.get() {
-            self.result.set(Some(rect));
-            unsafe { DestroyWindow(window) };
-        }
-    }
-
     fn point(&self, value: LPARAM) -> Point {
         let point = Point {
             x: value as i16 as i32,
@@ -176,27 +153,7 @@ impl Overlay<'_> {
         if !dc.is_null() {
             let dirty = Rect::from(paint.rcPaint);
             if dirty.has_area() {
-                blit(dc, self.frame.dib.dc(), dirty);
-                unsafe {
-                    AlphaBlend(
-                        dc,
-                        dirty.left,
-                        dirty.top,
-                        dirty.width(),
-                        dirty.height(),
-                        self.shade.dc(),
-                        0,
-                        0,
-                        1,
-                        1,
-                        BLENDFUNCTION {
-                            BlendOp: AC_SRC_OVER as u8,
-                            BlendFlags: 0,
-                            SourceConstantAlpha: 105,
-                            AlphaFormat: 0,
-                        },
-                    );
-                }
+                blit(dc, self.shade.dc(), dirty);
                 let selection = self.visible_selection();
                 if let Some(rect) = selection {
                     let exposed = rect.intersection(dirty);
@@ -216,12 +173,11 @@ impl Overlay<'_> {
     fn paint_panel(&self, dc: HDC, selection: Option<Rect>) {
         let panel = self.chrome.panel;
         fill(dc, panel, PANEL_BG, false);
-        let committed = self.selection.get().is_some() && self.drag.get().is_none();
         let message = selection.map_or_else(
-            || String::from("Drag to select a region   ·   Esc to cancel"),
+            || String::from("Drag to select  ·  Release to edit  ·  Esc to cancel"),
             |rect| {
                 format!(
-                    "{} × {} px   ·   Esc to cancel",
+                    "{} × {} px   ·   Release to edit",
                     rect.width(),
                     rect.height()
                 )
@@ -232,13 +188,7 @@ impl Overlay<'_> {
             SetBkMode(dc, TRANSPARENT as i32);
             SetTextColor(dc, PANEL_FG);
         }
-        let mut label = panel;
-        if committed {
-            label.right = self.chrome.button.left;
-            fill(dc, self.chrome.button, ACCENT, false);
-            draw_text(dc, self.chrome.button, "Copy  ↵");
-        }
-        draw_text(dc, label, &message);
+        draw_text(dc, panel, &message);
         unsafe { SelectObject(dc, old) };
     }
 }
@@ -306,18 +256,13 @@ unsafe extern "system" fn window_proc(
         WM_ERASEBKGND => return 1,
         WM_LBUTTONDOWN => {
             let point = state.point(lparam);
-            if state.selection.get().is_some() && state.chrome.button.contains(point) {
-                state.copy_and_close(window);
-            } else {
-                let before = state.visible_selection();
-                state.selection.set(None);
-                state.drag.set(Some(Drag {
-                    start: point,
-                    current: point,
-                }));
-                unsafe { SetCapture(window) };
-                state.invalidate(window, before);
-            }
+            let before = state.visible_selection();
+            state.drag.set(Some(Drag {
+                start: point,
+                current: point,
+            }));
+            unsafe { SetCapture(window) };
+            state.invalidate(window, before);
         }
         WM_MOUSEMOVE => {
             if let Some(drag) = state.drag.get() {
@@ -336,11 +281,13 @@ unsafe extern "system" fn window_proc(
             let before = state.visible_selection();
             if let Some(drag) = state.drag.take() {
                 let selection = Rect::between(drag.start, state.point(lparam));
-                state
-                    .selection
-                    .set(selection.has_area().then_some(selection));
                 unsafe { ReleaseCapture() };
-                state.invalidate(window, before);
+                if selection.has_area() {
+                    state.result.set(Some(selection));
+                    unsafe { DestroyWindow(window) };
+                } else {
+                    state.invalidate(window, before);
+                }
             }
         }
         WM_CAPTURECHANGED => {
@@ -348,13 +295,6 @@ unsafe extern "system" fn window_proc(
             if state.drag.take().is_some() {
                 state.invalidate(window, before);
             }
-        }
-        WM_KEYDOWN
-            if wparam == usize::from(VK_RETURN)
-                || (wparam == b'C' as usize
-                    && unsafe { GetKeyState(i32::from(VK_CONTROL)) } < 0) =>
-        {
-            state.copy_and_close(window);
         }
         WM_KEYDOWN if wparam == usize::from(VK_ESCAPE) => {
             unsafe { DestroyWindow(window) };
@@ -412,15 +352,12 @@ pub fn select(
         return Err(os_error("Obtaining the overlay application handle"));
     }
     register_class(instance)?;
-    let mut shade = Dib::new(1, 1)?;
-    shade.clear();
     let state = Overlay {
         frame,
         cancelled,
-        shade,
+        shade: frame.dimmed()?,
         chrome: Chrome::new(frame)?,
         drag: Cell::new(None),
-        selection: Cell::new(None),
         result: Cell::new(None),
     };
     let window = unsafe {

@@ -2,6 +2,7 @@
 
 mod dashboard;
 mod diagnostics;
+mod editor;
 mod geometry;
 mod native;
 mod session;
@@ -62,6 +63,11 @@ async fn set_shortcut(
     app.state::<Shortcuts>().update(&app, mode, binding)
 }
 
+#[tauri::command]
+fn set_shortcut_recording(shortcuts: State<'_, Shortcuts>, recording: bool) {
+    shortcuts.set_recording(recording);
+}
+
 fn main() {
     let started = Instant::now();
     let app = tauri::Builder::default()
@@ -71,6 +77,19 @@ fn main() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(Sessions::new())
         .manage(Diagnostics::new(started))
+        .manage(editor::Editor::default())
+        .on_window_event(|window, event| {
+            if matches!(event, tauri::WindowEvent::Destroyed) {
+                match window.label() {
+                    "editor" => editor::closed(window.app_handle()),
+                    "main" => window
+                        .app_handle()
+                        .state::<Shortcuts>()
+                        .set_recording(false),
+                    _ => {}
+                }
+            }
+        })
         .setup(|app| {
             let store = settings::Store::new(&app.path().app_config_dir()?);
             app.manage(Shortcuts::new(store));
@@ -87,6 +106,9 @@ fn main() {
             start_capture,
             cancel_capture,
             set_shortcut,
+            set_shortcut_recording,
+            editor::load_edit_image,
+            editor::copy_edited_image,
         ])
         .build(tauri::generate_context!())
         .unwrap_or_else(|error| {

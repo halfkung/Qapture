@@ -1,19 +1,19 @@
-# Phase 0 status
+# Project status
 
-The prototype is implemented with Tauri 2, React, TypeScript, Vite, Tailwind CSS, and Rust. It includes tray capture, a single-instance dashboard, persistent shortcuts, native desktop capture and region selection, and native-resolution clipboard export. The current milestone is Product Owner review before Phase 1.
+The prototype is implemented with Tauri 2, React, TypeScript, Vite, Tailwind CSS, and Rust. It includes tray capture, a single-instance dashboard, persistent shortcuts, native desktop capture and region selection, and native-resolution clipboard export. After the Phase 0 review, the capture UX preview added the initial quick editor.
 
 On this workstation, the optimized executable is `.local/release-target/release/qapture.exe`. The unsigned x64 NSIS installer is `.local/release-target/release/bundle/nsis/Qapture_0.1.0_x64-setup.exe`. The executable launched and passed the desktop smoke test. Validation on a clean machine remains open.
 
-## Dashboard refresh
+## Capture UX preview
 
-The redesigned dashboard is available in the standalone preview at `.local/ui-refresh/Qapture.exe`. Its light and dark previews and the shortcut editor preview are in the same folder. The bundled installer contains the original Phase 0 dashboard.
+The current standalone preview is `.local/capture-studio/Qapture.exe`. The dashboard shows illustrated capture controls and records shortcuts from key presses. Region capture dims the surrounding desktop and opens the editor on release. The editor provides pen, rectangle, arrow, undo, redo and clipboard copy. The bundled installer contains the original Phase 0 build.
 
 | Test type | Results |
 | --- | --- |
-| Automated source checks | Frontend lint, five Vitest tests, production bundle, Rust formatting, Clippy, and six Rust tests passed. |
-| Automated desktop checks | WebView2 validation covered the 720 × 600 dashboard, the compact 540 × 500 viewport, both themes, editing a shortcut, duplicate validation, and keyboard focus after save and Escape. |
-| Visual review | Reviewed screenshots of both themes and the compact shortcut editor from the running app. |
-| Unexecuted in this refresh | Native capture smoke, clipboard export, installer upgrade, and performance requalification. |
+| Automated source checks | Frontend lint, eight Vitest tests, production bundle, Rust formatting, Clippy, and ten Rust tests passed. The optimized preview built successfully. |
+| Automated desktop checks | An isolated Windows debug build verified both themes and compact layout, pressed-key recording and persistence, routing a registered Qapture key into the recorder, dimming and unchanged selected pixels, editor handoff, native image dimensions and color across the monitor seam, drawing tools and undo/redo, protected clipboard contention, and the return to the dashboard. |
+| Visual review | Reviewed both dashboard themes from the running Windows build. Preview images use the isolated test shortcuts. |
+| Unexecuted in this preview | Successful copy/paste, updated capture benchmarks, installer upgrade and clean-machine testing. The existing clipboard item was preserved. |
 
 ## Environment audit · 25 November 2026
 
@@ -46,7 +46,7 @@ The desktop test fixture runs on the workstation's 1920 × 1200 display at 125%,
 | Manual checks | Tray menu clicks, visual checks on other Windows configurations, clipboard paste into Paint, and clean-machine install remain open. |
 | Unexecuted | Successful native clipboard publication and its 1080p timing were skipped to preserve the user's clipboard. Windows 10, 4K, 200%, HDR, RDP, and a ≥99.9% reliability run also remain open. |
 
-## Release benchmark
+## Phase 0 release benchmark
 
 | Metric | Observed | Proposed target |
 | --- | --- | --- |

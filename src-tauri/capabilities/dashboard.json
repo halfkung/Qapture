@@ -9,6 +9,7 @@
     "allow-dashboard-ready",
     "allow-start-capture",
     "allow-cancel-capture",
-    "allow-set-shortcut"
+    "allow-set-shortcut",
+    "allow-set-shortcut-recording"
   ]
 }

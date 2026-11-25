@@ -3,8 +3,17 @@ use tauri::{AppHandle, Manager, WebviewWindowBuilder};
 use crate::session::{self, Phase, Sessions};
 
 pub fn show(app: &AppHandle) -> tauri::Result<()> {
-    if app.state::<Sessions>().phase() != Phase::Idle {
-        return Ok(());
+    match app.state::<Sessions>().phase() {
+        Phase::Idle => {}
+        Phase::Editing => {
+            if let Some(window) = app.get_webview_window("editor") {
+                window.unminimize()?;
+                window.show()?;
+                let _ = window.set_focus();
+            }
+            return Ok(());
+        }
+        _ => return Ok(()),
     }
     let window = if let Some(window) = app.get_webview_window("main") {
         window

@@ -2,14 +2,14 @@
 
 **Capture. Create. Share.**
 
-Qapture is a local-first Windows screenshot and annotation project. Phase 0 validates the path from a global shortcut to a native-resolution image on the clipboard.
+Qapture is a local-first Windows capture and markup app. Its quick editor lets you mark up a selected region and copy it at native resolution.
 
 ## Use the prototype
 
 1. Launch `qapture.exe`. You can close the dashboard and continue capturing from the tray.
-2. Press **Ctrl+Shift+F9** and drag a region. The overlay shows its physical dimensions. Press **Enter**, use **Ctrl+C**, or select **Copy** to export. Press **Esc** to cancel.
+2. Press **Ctrl+Shift+F9** and drag a region. The selection stays bright while the desktop around it is dimmed. Release the mouse to open the quick editor, where you can use a pen, rectangle, or arrow and then select **Copy image** or press **Ctrl+C**. Press **Esc** in the overlay to cancel or in the editor to close it.
 3. Press **Ctrl+Shift+F10** to copy the full desktop across all attached monitors.
-4. To change a shortcut, open Qapture from the tray. Choose **Edit** beside an action under **Keyboard shortcuts**, press or type a new combination, and select **Save**. Press **Esc** or select **Cancel** to discard the edit. Typing also lets you check a shortcut already reserved by Windows or another application.
+4. To change a shortcut, open Qapture from the tray. Choose **Edit** beside an action under **Keyboard shortcuts**, press the new combination on your keyboard, and select **Save**. Press **Esc** or select **Cancel** to discard the edit.
 
 Paste into an image-capable application such as Paint. Qapture publishes the image to the Windows clipboard and requests exclusion from Windows clipboard history and cloud sync.
 

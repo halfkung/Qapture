@@ -1,0 +1,10 @@
+{
+  "identifier": "capture-editor",
+  "description": "Read the selected capture in memory and copy the edited image",
+  "windows": ["editor"],
+  "permissions": [
+    "allow-load-edit-image",
+    "allow-copy-edited-image",
+    "core:window:allow-close"
+  ]
+}

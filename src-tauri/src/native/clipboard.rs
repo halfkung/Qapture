@@ -136,6 +136,42 @@ pub fn copy(frame: &Frame, requested: Rect) -> Result<(), String> {
     if !rect.has_area() {
         return Err("Select a region before copying.".into());
     }
+    publish(rect, |image| {
+        copy_rows(
+            frame.dib.pixels(),
+            frame.bounds.width() as usize,
+            rect,
+            image,
+        );
+    })
+}
+
+pub fn copy_rgba(width: i32, height: i32, pixels: &[u8]) -> Result<(), String> {
+    let rect = Rect {
+        left: 0,
+        top: 0,
+        right: width,
+        bottom: height,
+    };
+    if !rect.has_area() || width as u64 * height as u64 * 4 != pixels.len() as u64 {
+        return Err("The edited image has invalid dimensions.".into());
+    }
+    publish(rect, |image| encode_rgba(pixels, width as usize * 4, image))
+}
+
+fn encode_rgba(pixels: &[u8], stride: usize, image: &mut [u8]) {
+    for (source, target) in pixels
+        .chunks_exact(stride)
+        .rev()
+        .zip(image.chunks_exact_mut(stride))
+    {
+        for (rgba, bgra) in source.chunks_exact(4).zip(target.chunks_exact_mut(4)) {
+            bgra.copy_from_slice(&[rgba[2], rgba[1], rgba[0], 255]);
+        }
+    }
+}
+
+fn publish(rect: Rect, write_pixels: impl FnOnce(&mut [u8])) -> Result<(), String> {
     let header_len = size_of::<BITMAPINFOHEADER>();
     let bytes = rect.width() as usize * rect.height() as usize * 4;
     let memory = ClipboardMemory::new(header_len + bytes)?;
@@ -146,12 +182,7 @@ pub fn copy(frame: &Frame, requested: Rect) -> Result<(), String> {
     unsafe {
         data.cast::<BITMAPINFOHEADER>().write(dib_header(rect));
         let image = slice::from_raw_parts_mut(data.add(header_len), bytes);
-        copy_rows(
-            frame.dib.pixels(),
-            frame.bounds.width() as usize,
-            rect,
-            image,
-        );
+        write_pixels(image);
         GlobalUnlock(memory.0);
     }
     let privacy_format = unsafe {
@@ -197,5 +228,12 @@ mod tests {
             (header.biWidth, header.biHeight, header.biBitCount),
             (2, 2, 32)
         );
+    }
+
+    #[test]
+    fn editor_pixels_convert_to_bottom_up_opaque_native_format() {
+        let mut dib = [0; 8];
+        encode_rgba(&[10, 20, 30, 255, 90, 80, 70, 255], 4, &mut dib);
+        assert_eq!(dib, [70, 80, 90, 255, 30, 20, 10, 255]);
     }
 }

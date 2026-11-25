@@ -109,14 +109,20 @@ function Open-Overlay([switch] $VisibleOnly) {
     } 'the region overlay'
 }
 
-function Drag-Region([int] $X, [int] $Y, [int] $Width, [int] $Height) {
+function Start-RegionDrag([int] $X, [int] $Y, [int] $Width, [int] $Height) {
     [QaptureProbe]::SetPhysicalCursorPos($X, $Y) | Out-Null
     [QaptureProbe]::mouse_event(2, 0, 0, 0, [UIntPtr]::Zero)
     Start-Sleep -Milliseconds 50
     [QaptureProbe]::SetPhysicalCursorPos(($X + $Width), ($Y + $Height)) | Out-Null
     Start-Sleep -Milliseconds 50
+}
+
+function Complete-RegionDrag {
     [QaptureProbe]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero)
-    Start-Sleep -Milliseconds 60
+    Wait-For {
+        $window = [QaptureProbe]::FindWindow([NullString]::Value, "Qapture $([char]0x2014) Quick editor")
+        if ($window -ne [IntPtr]::Zero -and [QaptureProbe]::IsWindowVisible($window)) { $window }
+    } 'the quick editor after mouse release'
 }
 
 function Get-ProcessTree([int] $Root) {
@@ -213,29 +219,38 @@ try {
     # Close the source popup after the snapshot so the observed pixel can only be from the overlay.
     $dropdown.Close()
     [Windows.Forms.Application]::DoEvents()
-    Drag-Region $regionX $regionY $regionWidth $regionHeight
+    Start-RegionDrag $regionX $regionY $regionWidth $regionHeight
     Wait-For { [QaptureProbe]::ScreenColor($menuX, $menuY) -eq $menuColor } 'the frozen dropdown pixel' | Out-Null
+    Wait-For { [QaptureProbe]::ScreenColor(($regionX + 9), ($regionY - 15)) -eq 0x131e36 } 'the dimmed pixels outside the selection' | Out-Null
     Wait-For { [QaptureProbe]::GetForegroundWindow() -eq $overlay } 'selection keyboard focus' | Out-Null
-    'Passed: physical monitor bounds, frozen dropdown, and overlapping hotkey rejection.'
+    $editor = Complete-RegionDrag
+    Wait-Reports 1
+    'Passed: physical monitor bounds, frozen dropdown, dimmed background, overlapping hotkey rejection, and direct editor handoff.'
 
     if ($TestClipboard) {
-        [QaptureProbe]::Tap(0x0d)
-        Wait-Reports 1
-        Assert (([QaptureProbe]::ClipboardPixel($regionWidth, $regionHeight, 8, 12)) -eq 0x345191) 'Region clipboard pixel did not match the fixture.'
+        Wait-For {
+            [QaptureProbe]::GetForegroundWindow() -eq $editor -and
+            [QaptureProbe]::IsWindowVisible($editor)
+        } 'editor focus' | Out-Null
+        Wait-For {
+            [QaptureProbe]::Key(0x11, $true)
+            [QaptureProbe]::Tap(0x43)
+            [QaptureProbe]::Key(0x11, $false)
+            Start-Sleep -Milliseconds 160
+            ([QaptureProbe]::ClipboardPixel($regionWidth, $regionHeight, 8, 12)) -eq 0x345191
+        } 'editor clipboard output' | Out-Null
         Assert (([QaptureProbe]::ClipboardPixel($regionWidth, $regionHeight, ($menuX - $regionX), ($menuY - $regionY))) -eq $menuColor) 'Captured dropdown pixel did not match.'
+    }
+    [QaptureProbe]::PostMessage($editor, 0x10, [UIntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+    Wait-For { ![QaptureProbe]::IsWindowVisible($editor) } 'editor close' | Out-Null
+
+    if ($TestClipboard) {
         [QaptureProbe]::Shortcut(0x79)
         Wait-Reports 2
         Assert (([QaptureProbe]::ClipboardPixel(($right - $left), ($bottom - $top), ($regionX - $left), ($regionY - $top))) -eq 0x345191) 'Full desktop clipboard pixel did not match.'
         'Passed: native region and full desktop clipboard dimensions and fixture pixels.'
         $completed = 2
     } else {
-        Assert ([QaptureProbe]::OpenClipboard($fixture.Handle)) 'Could not reserve clipboard for contention testing.'
-        try {
-            [QaptureProbe]::Tap(0x0d)
-            Wait-Reports 1
-        } finally { [QaptureProbe]::CloseClipboard() | Out-Null }
-        $report = Read-Entries | Where-Object event -eq 'capture-finished' | Select-Object -Last 1
-        Assert ($report.outcome -eq 'error' -and $null -ne $report.clipboardMs) 'Expected a native clipboard contention error.'
         Assert ([QaptureProbe]::OpenClipboard($fixture.Handle)) 'Could not reserve clipboard for the full desktop test.'
         try {
             [QaptureProbe]::Shortcut(0x79)
@@ -243,7 +258,7 @@ try {
         } finally { [QaptureProbe]::CloseClipboard() | Out-Null }
         $report = Read-Entries | Where-Object event -eq 'capture-finished' | Select-Object -Last 1
         Assert ($report.outcome -eq 'error' -and $null -ne $report.clipboardMs) 'Expected a clipboard contention error after capturing the full desktop.'
-        'Passed: clipboard contention and cleanup for both capture modes.'
+        'Passed: full-desktop clipboard contention and cleanup.'
         $completed = 2
     }
     for ($sample = 1; $sample -le $Samples; $sample++) {
@@ -266,12 +281,14 @@ try {
             $rightColor = [QaptureProbe]::ScreenColor(($seam + 20), ($y + 20))
             Assert ($leftColor -eq 0x345191 -and $rightColor -eq 0x345191) 'The fixture was covered at the monitor seam.'
             $null = Open-Overlay
-            Drag-Region ($seam - 70) $y 140 60
+            Start-RegionDrag ($seam - 70) $y 140 60
             Wait-For {
                 [QaptureProbe]::ScreenColor(($seam - 20), ($y + 20)) -eq $leftColor -and
                 [QaptureProbe]::ScreenColor(($seam + 20), ($y + 20)) -eq $rightColor
             } 'a region spanning both displays' | Out-Null
-            [QaptureProbe]::Tap(0x1b)
+            $editor = Complete-RegionDrag
+            [QaptureProbe]::PostMessage($editor, 0x10, [UIntPtr]::Zero, [IntPtr]::Zero) | Out-Null
+            Wait-For { ![QaptureProbe]::IsWindowVisible($editor) } 'editor close after cross-monitor selection' | Out-Null
             Wait-Reports ($completed + $Samples + 1)
             'Passed: exact selection pixels across the physical monitor seam.'
         }
@@ -282,10 +299,6 @@ try {
     $p95 = $warm[[Math]::Ceiling(.95 * $warm.Count) - 1]
     'Warm overlay: p95 {0:N1} ms, max {1:N1} ms, n={2}' -f $p95, $warm[-1], $warm.Count
     'Dashboard startup: {0:N1} ms from launch, {1:N1} ms from Rust entry, n=1' -f $startup.Elapsed.TotalMilliseconds, ($entries | Where-Object event -eq 'dashboard-ready').startupMs
-    if ($TestClipboard) {
-        'Region clipboard: {0:N1} ms, {1} x {2}, n=1' -f ($entries | Where-Object outcome -eq 'copied' | Select-Object -First 1).clipboardMs, $regionWidth, $regionHeight
-    }
-
     Assert (![QaptureProbe]::RegisterHotKey($fixture.Handle, 37, 6, 0x78)) 'The app did not reserve its default global shortcut.'
     $second = Start-Process -FilePath $exe -PassThru
     Assert ($second.WaitForExit(5000) -and !$app.HasExited) 'Second launch did not defer to the running app.'
@@ -295,6 +308,7 @@ try {
     } 'dashboard restoration by the first instance' | Out-Null
     'Passed: Windows shortcut reservation, close-to-tray, and single-instance behavior.'
 } finally {
+    [QaptureProbe]::mouse_event(4, 0, 0, 0, [UIntPtr]::Zero)
     if ($dropdown) { $dropdown.Dispose() }
     foreach ($window in $windows) { $window.Dispose() }
     foreach ($process in @($second, $app)) {

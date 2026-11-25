@@ -1,12 +1,12 @@
 import { invoke, isTauri } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import { ArrowRight, Check, Keyboard, Monitor, Pencil, Scan } from 'lucide-react'
+import { ArrowRight, Check, Keyboard, Monitor, Pencil, Scan, Settings2 } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import icon from '../src-tauri/icons/icon.ico?url'
 import { bindingFor, captureModes, keycaps, type CaptureMode, type ShortcutStatus } from './shortcuts'
 
 type CaptureReport = {
-  outcome: 'copied' | 'cancelled' | 'error'
+  outcome: 'copied' | 'cancelled' | 'editing' | 'error'
   overlayMs: number | null
   clipboardMs: number | null
   message: string
@@ -14,13 +14,13 @@ type CaptureReport = {
 
 type DashboardInfo = {
   shortcuts: ShortcutStatus
-  phase: 'idle' | 'capturing' | 'selecting' | 'exporting'
+  phase: 'idle' | 'capturing' | 'selecting' | 'editing' | 'exporting'
   last: CaptureReport | null
 }
 
 const actions = {
-  region: { title: 'Capture a region', detail: 'Select an area of your screen', setting: 'Region capture', icon: Scan },
-  full: { title: 'Copy full desktop', detail: 'Capture all connected displays', setting: 'Full desktop', icon: Monitor },
+  region: { title: 'Capture a region', detail: 'Select an area, then edit', setting: 'Region capture', icon: Scan },
+  full: { title: 'Copy full desktop', detail: 'Copy all connected displays', setting: 'Full desktop', icon: Monitor },
 }
 
 function Keys({ binding }: { binding: string }) {
@@ -36,7 +36,7 @@ export function App() {
   const [shortcutError, setShortcutError] = useState('')
   const [capturePending, setCapturePending] = useState(false)
   const editButtons = useRef<Partial<Record<CaptureMode, HTMLButtonElement | null>>>({})
-  const shortcutInput = useRef<HTMLInputElement>(null)
+  const shortcutRecorder = useRef<HTMLButtonElement>(null)
   const shortcutEditor = useRef<HTMLFormElement>(null)
   const returnFocus = useRef<CaptureMode | undefined>(undefined)
 
@@ -52,22 +52,40 @@ export function App() {
         if (active) setError('Could not load Qapture’s local settings.')
       })
     }
-    const subscription = listen('qapture-status', refresh)
-    void subscription.catch(() => {
-      if (active) setError('Could not subscribe to Qapture’s capture status.')
-    })
+    const subscriptions = [
+      listen('qapture-status', refresh),
+      listen<string>('qapture-shortcut-recorded', ({ payload }) => {
+        if (active) {
+          setDraft(payload)
+          setShortcutError('')
+        }
+      }),
+    ]
+    for (const subscription of subscriptions) {
+      void subscription.catch(() => {
+        if (active) setError('Could not subscribe to Qapture’s updates.')
+      })
+    }
     void refresh()
     void invoke('dashboard_ready').catch(() => undefined)
     return () => {
       active = false
-      void subscription.then((unlisten) => unlisten(), () => undefined)
+      for (const subscription of subscriptions) {
+        void subscription.then((unlisten) => unlisten(), () => undefined)
+      }
     }
   }, [])
+
+  useEffect(() => {
+    if (!recording || pendingShortcut !== undefined) return
+    void invoke('set_shortcut_recording', { recording: true }).catch(() => undefined)
+    return () => { void invoke('set_shortcut_recording', { recording: false }).catch(() => undefined) }
+  }, [recording, pendingShortcut])
 
   useLayoutEffect(() => {
     if (pendingShortcut !== undefined) return
     if (recording !== undefined) {
-      shortcutInput.current?.focus()
+      shortcutRecorder.current?.focus()
       shortcutEditor.current?.scrollIntoView({ block: 'nearest' })
     } else if (returnFocus.current !== undefined) {
       editButtons.current[returnFocus.current]?.focus()
@@ -93,22 +111,25 @@ export function App() {
     setShortcutError('')
   }
 
-  function record(event: KeyboardEvent<HTMLInputElement>) {
-    if (!(event.ctrlKey && !event.altKey && !event.shiftKey && /^Key[ACVXYZ]$/.test(event.code))) {
-      const binding = bindingFor(event)
-      if (binding) {
-        event.preventDefault()
-        setDraft(binding)
-        setShortcutError('')
-      }
+  function record(event: KeyboardEvent<HTMLButtonElement>) {
+    if (event.key === 'Escape' || event.key === 'Tab') return
+    event.preventDefault()
+    if (event.repeat || ['Control', 'Alt', 'Shift', 'Meta'].includes(event.key)) return
+    const binding = bindingFor(event)
+    if (binding) {
+      setDraft(binding)
+      setShortcutError('')
+    } else {
+      setShortcutError('Hold Ctrl or Alt with a letter, number, or F1–F12.')
     }
   }
 
   async function saveShortcut(mode: CaptureMode) {
+    if (!draft || pendingShortcut !== undefined) return
     setPendingShortcut(mode)
     setShortcutError('')
     try {
-      const shortcuts = await invoke<ShortcutStatus>('set_shortcut', { mode, binding: draft.trim() })
+      const shortcuts = await invoke<ShortcutStatus>('set_shortcut', { mode, binding: draft })
       setInfo((current) => current && { ...current, shortcuts })
       closeEditor(mode)
     } catch (problem) {
@@ -121,7 +142,8 @@ export function App() {
   const shortcuts = info?.shortcuts
   const busy = Boolean(info && info.phase !== 'idle')
   const last = info?.last
-  const status = error || (busy ? 'Capture in progress…' : last?.message)
+  const editingCapture = info?.phase === 'editing'
+  const status = error || (editingCapture ? 'Capture open in Quick editor' : busy ? 'Capture in progress…' : last?.message)
 
   return (
     <>
@@ -129,20 +151,29 @@ export function App() {
         <div className="brand content-width">
           <img src={icon} alt="" width="28" height="28" />
           <span>Qapture</span>
+          <a className="settings-link" href="#shortcuts-heading"><Settings2 size={16} aria-hidden="true" /> Shortcuts</a>
         </div>
       </header>
 
       <main className="dashboard content-width">
         <section aria-labelledby="capture-heading">
-          <h1 id="capture-heading">New capture</h1>
-          <p className="intro">Captures go straight to your clipboard.</p>
+          <div className="capture-hero">
+            <div className="hero-copy">
+              <h1 id="capture-heading">Capture your screen</h1>
+              <p>Select a region to open the editor.</p>
+            </div>
+            <div className="hero-art" aria-hidden="true">
+              <span className="art-window" />
+              <span className="art-selection" />
+            </div>
+          </div>
           <div className="capture-actions">
             {captureModes.map((mode) => {
               const action = actions[mode]
               const ActionIcon = action.icon
               const active = mode === 'region' ? shortcuts?.regionActive : shortcuts?.fullActive
               return (
-                <button key={mode} className={`capture-card ${mode}`} disabled={!info || busy || capturePending}
+                <button key={mode} className={`capture-card ${mode}`} disabled={!info || busy || capturePending || recording !== undefined}
                   onClick={() => void capture(mode)}>
                   <span className="action-icon"><ActionIcon size={22} aria-hidden="true" /></span>
                   <span className="action-copy">
@@ -189,7 +220,7 @@ export function App() {
                             closeEditor(mode)
                           } else {
                             setShortcutError('')
-                            setDraft(shortcuts?.settings[mode] ?? '')
+                            setDraft('')
                             setRecording(mode)
                           }
                         }}>
@@ -209,21 +240,16 @@ export function App() {
                       event.preventDefault()
                       void saveShortcut(mode)
                     }}>
-                    <label>
-                      <span>Press or type a shortcut</span>
-                      <input ref={shortcutInput} value={draft} maxLength={64} required onKeyDown={record}
-                        onChange={(event) => {
-                          setDraft(event.target.value)
-                          setShortcutError('')
-                        }}
-                        aria-invalid={!!shortcutError}
-                        aria-describedby={shortcutError ? errorId : undefined}
-                        disabled={pendingShortcut !== undefined} />
-                    </label>
+                      <button ref={shortcutRecorder} type="button" className="shortcut-recorder" onKeyDown={record}
+                        aria-label="Record keyboard shortcut" aria-describedby={shortcutError ? errorId : undefined}
+                        disabled={pendingShortcut !== undefined}>
+                        <Keyboard size={17} aria-hidden="true" />
+                        <span aria-live="polite">{draft ? <Keys binding={draft} /> : 'Press a key combination'}</span>
+                      </button>
                     <div className="edit-actions">
                       <button className="text-button" type="button" disabled={pendingShortcut !== undefined}
                         onClick={() => closeEditor(mode)}>Cancel</button>
-                      <button className="save-button" type="submit" disabled={pendingShortcut !== undefined}>
+                        <button className="save-button" type="submit" disabled={!draft || pendingShortcut !== undefined}>
                         {pendingShortcut === mode ? 'Saving…' : 'Save'}
                       </button>
                     </div>
@@ -243,7 +269,7 @@ export function App() {
               <span className={error || (!busy && last?.outcome === 'error') ? 'error' : ''}>{status}</span>
             </>}
           </p>
-          {busy && <button className="text-button" onClick={() => void invoke('cancel_capture').catch((problem) => setError(String(problem)))}>Cancel</button>}
+          {busy && !editingCapture && <button className="text-button" onClick={() => void invoke('cancel_capture').catch((problem) => setError(String(problem)))}>Cancel</button>}
         </div>
       </main>
     </>

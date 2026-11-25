@@ -5,6 +5,9 @@ fn main() {
         "start_capture",
         "cancel_capture",
         "set_shortcut",
+        "set_shortcut_recording",
+        "load_edit_image",
+        "copy_edited_image",
     ]);
     tauri_build::try_build(tauri_build::Attributes::new().app_manifest(manifest))
         .expect("Could not configure Qapture");

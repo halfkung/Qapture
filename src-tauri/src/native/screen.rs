@@ -208,6 +208,14 @@ impl Dib {
             ptr::write_bytes(self.data, 0, self.bytes);
         }
     }
+
+    fn pixels_mut(&mut self) -> &mut [u8] {
+        // The DIB has been initialized and its GDI operations run on this worker.
+        unsafe {
+            GdiFlush();
+            slice::from_raw_parts_mut(self.data, self.bytes)
+        }
+    }
 }
 
 impl Drop for Dib {
@@ -236,6 +244,26 @@ impl Frame {
     pub fn image_rect(&self) -> Rect {
         self.bounds.local_rect(self.bounds)
     }
+
+    pub fn dimmed(&self) -> Result<Dib, String> {
+        let mut shadow = Dib::new(self.bounds.width(), self.bounds.height())?;
+        shadow.clear();
+        for (source, target) in self
+            .dib
+            .pixels()
+            .chunks_exact(4)
+            .zip(shadow.pixels_mut().chunks_exact_mut(4))
+        {
+            let pixel = u32::from_le_bytes(source.try_into().unwrap());
+            target.copy_from_slice(&dim_pixel(pixel).to_le_bytes());
+        }
+        Ok(shadow)
+    }
+}
+
+fn dim_pixel(pixel: u32) -> u32 {
+    // Scale each BGR channel to roughly 37.5%, leaving no shared alpha byte.
+    ((pixel >> 2) & 0x003f3f3f) + ((pixel >> 3) & 0x001f1f1f)
 }
 
 pub fn capture() -> Result<Frame, String> {
@@ -277,4 +305,15 @@ pub fn capture() -> Result<Frame, String> {
         displays,
         dib,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shade_darkens_each_color_channel_independently() {
+        assert_eq!(dim_pixel(0xaa_ff_80_08), 0x00_5e_30_03);
+        assert_eq!(dim_pixel(0xff_00_00_00), 0);
+    }
 }

@@ -7,4 +7,5 @@
 - The main window releases WebView2 on close. Editor-active memory and the startup distribution still need qualification.
 - The unsigned Phase 0 installer contains the original dashboard. The dashboard refresh is available as a standalone preview. Validate installation, upgrade, removal, offline runtime prerequisites, and signing on the release matrix.
 - Successful copy and paste to independent applications and the 1080p clipboard target remain unverified on the kickoff workstation.
-- The full annotation editor and PNG save belong to Phase 1.
+- Windows or another application can intercept reserved shortcuts before they reach the recorder.
+- Quick editing provides pen, rectangle and arrow markup. Text, individual object transforms, and PNG save remain on the roadmap.

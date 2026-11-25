@@ -2,8 +2,10 @@
 
 ## Unreleased
 
-- Simplified the capture dashboard with two stacked actions, improved light and dark contrast, and a more compact window.
-- Added labeled shortcut edit buttons, inline validation feedback, and keyboard focus restoration after saving or cancelling.
+- Added a capture illustration and shortcut settings link to the dashboard.
+- Replaced text shortcut editing with direct keyboard recording and keycaps, preserving validation and focus restoration.
+- Increased dimming outside the active selection and opened the quick editor on mouse release.
+- Added native-resolution pen, rectangle, arrow, undo, redo, and clipboard export in the quick editor.
 
 ## 0.1.0 — Phase 0 prototype
 

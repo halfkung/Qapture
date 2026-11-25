@@ -10,7 +10,7 @@
 ## Phase 1 recommendation
 
 1. Agree on capture coverage and performance gates. Compare Windows Graphics Capture and Desktop Duplication only where Phase 0 evidence identifies a gap.
-2. Deliver selection handles, keyboard adjustment, PNG saving with a native save dialog, and a documented native-to-editor image handoff.
-3. Prototype Konva on a representative 4K frame with physical pixel transforms. Use Zustand for editor state if it simplifies immutable commands, history, and tool state.
-4. Build object selection and undo/redo alongside the initial rectangle, ellipse, line, and arrow tools. Add freehand, highlighter, and text with Thai/English IME validation.
+2. The capture UX preview delivers an in-memory native-to-editor handoff, pen, rectangle, arrow, undo/redo, and clipboard export. Follow up with selection handles, keyboard adjustment and PNG saving with a native save dialog.
+3. Measure Canvas 2D on a representative 4K frame. Compare Konva or use Zustand if object transforms and immutability requirements make them useful.
+4. Add object selection and the remaining shape, highlight and text tools, with Thai/English IME validation.
 5. Validate offline install, DPI and monitor topology, memory and latency, and exports while the editor is active. Use shadcn/ui selectively for accessible editor and settings controls.
