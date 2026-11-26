@@ -1,15 +1,16 @@
 # Architecture
 
-Tauri 2 owns the application lifecycle, dashboard WebView2 surface, tray, and integration with Windows shortcut registration and single-instance signaling. The dashboard is created on demand and released on close. The tray and shortcut service continue running without a WebView. The capture coordinator accepts one session at a time from the dashboard, tray, or either global shortcut.
+Tauri 2 owns the application lifecycle, WebView2 surfaces, tray, and integration with Windows shortcut registration and single-instance signaling. The dashboard is created on demand and released on close. The tray and shortcut service continue running without a WebView. The capture coordinator accepts one session at a time from the dashboard, tray, or global shortcuts.
 
 ```mermaid
 stateDiagram-v2
     [*] --> Idle
     Idle --> Capturing
-    Capturing --> Selecting: region
+    Capturing --> Selecting: region or window
     Capturing --> Exporting: full desktop
-    Selecting --> Editing: mouse release
-    Editing --> Editing: annotate or copy
+    Selecting --> Editing: confirm selection
+    Idle --> Editing: import or reopen a project
+    Editing --> Editing: annotate, export, or pin
     Editing --> Idle: editor closed
     Capturing --> Idle: cancelled or failed
     Selecting --> Idle: cancelled or failed
@@ -24,9 +25,10 @@ The capture worker sets its thread to Per-Monitor V2 DPI awareness before invoki
 | `native/overlay.rs` | Native window and input, frozen bitmap paint, physical selection and dimensions |
 | `session.rs` | Threaded capture lifecycle, overlap protection, cancellation and cleanup |
 | `native/clipboard.rs` | Bounded retries, exact crop, bottom-up CF_DIB, Windows ownership and privacy marker |
-| `editor.rs`, `Editor.tsx`, and `markup.ts` | In-memory crop transfer, native-resolution annotation, and clipboard export |
+| `editor.rs`, `Editor.tsx`, `editor-document.ts`, and `markup.ts` | In-memory crop transfer, editable document, native-resolution compositing and clipboard export |
+| `export.rs`, `storage.rs`, and `pin.rs` | Scoped local export, project file lifecycle and the flattened pinned preview |
 | `shortcuts.rs` and `settings.rs` | Windows registration, conflict handling, atomic settings replacement |
-| `dashboard.rs` and `tray.rs` | Dashboard window lifecycle and system tray commands |
+| `dashboard.rs`, `tray.rs` and `startup.rs` | Dashboard, tray and opt-in per-user startup |
 | `diagnostics.rs` | Latest result and opt-in timing-only local log |
 
-The native worker captures before creating the overlay. A second DIB supplies consistent dimmed pixels while the original supplies only the active selection. On mouse release, the worker crops to opaque RGBA and drops both desktop DIBs. Only the editor capability can request the selected crop from memory or submit edited pixels for copying. Closing the editor clears the crop and releases the capture session. The dashboard has a separate capability for capture and shortcut controls. PNG export and history remain backlog items.
+The native worker captures before creating the overlay. A second DIB supplies consistent dimmed pixels while the original supplies the active selection. After selection confirmation, the worker crops to opaque RGBA and drops both desktop DIBs. The editor capability reads the selected crop in memory and submits the finished result for clipboard, file export or pinning. Closing the editor clears the crop and releases the capture session. The dashboard has a separate capability for capture, shortcut controls and local History. The pinned window reads only its flattened preview.

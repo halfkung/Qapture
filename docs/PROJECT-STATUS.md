@@ -8,8 +8,19 @@ Run the standalone `.local/release-0.2.0/Qapture.exe`, or quit older Qapture ver
 | --- | --- |
 | Automated source and packaging | Frontend lint, 12 frontend tests, production bundle, Rust formatting, Clippy with warnings denied, 15 Rust tests, and optimized x64 NSIS packaging passed. |
 | Windows fixture | Verified delayed window capture at 720 × 460, adjusted region at 240 × 140, image import, Thai/English entry and text movement, undo/redo, crop, clipboard contention, pin creation, opt-in project retention, search, reopen, deletion, configured PNG export and automatic PNG/JPG/WebP export. Independently decoded the exported PNG and JPG dimensions. The PNG redaction sample was opaque. |
+| Optimized desktop smoke | Passed physical monitor bounds, dimmed background, overlapping capture protection, frozen popup pixels with configured non-Alt keys, mixed-DPI monitor seam, full-desktop clipboard contention, shortcut reservation, close to tray and second-launch dashboard restoration. |
 | Manual | Reviewed the synthetic editor screenshot for Thai tone marks, multiline text and crop presentation. A native Save As operation returned successfully and the output PNG decoded as 500 × 300. |
 | Pending | Successful external paste, physical Thai IME input, sleep/wake, clean install/upgrade/uninstall, sign-in startup, Windows 10/4K/200% regression and the statistical reliability target. The clipboard was preserved. |
+
+An optimized isolated build used the Windows 11 workstation's 2560 × 1440 display at 100% and 1920 × 1200 display at 125%. The second display has a negative X origin.
+
+| Metric | Observed | Target |
+| --- | --- | --- |
+| Warm hotkey to overlay | 75.9 ms p95 and 100.4 ms maximum, 20 samples | p95 ≤ 200 ms |
+| Warm open and cancel | 20 of 20 returned to idle | ≥99.9% in a qualification run |
+| Dashboard startup | 1,544.4 ms from launch, one sample | ≤ 2 s |
+| Idle tray CPU and memory | 0.00% host CPU rounded over 4.2 s, 29.7 MiB combined working set | ≤ 1% CPU, ≤ 100 MB stretch target |
+| Successful 1080p clipboard export | Unmeasured | ≤ 300 ms |
 
 See [Feature audit](FEATURE-AUDIT.md) for the baseline, implementation and advanced backlog.
 
