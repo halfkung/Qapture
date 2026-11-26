@@ -30,6 +30,14 @@ Preserve saved shortcuts on startup conflicts. User-initiated recovery retries t
 
 Paint the backdrop from a pre-dimmed GDI bitmap and paint the selection from the original snapshot. This gives the same dimming across monitors and keeps the selected pixels unchanged. Crop on pointer release and pass only the crop through Tauri's binary IPC to an editor-only capability. Use a second Canvas 2D layer for vector marks and keep the original pixels separately. Reuse the native Windows clipboard path for the composited image.
 
+## Editable documents and export
+
+Represent marks with IDs, source-image coordinates, and properties. Store immutable document changes for undo and redo. The visible canvas composites onto a separate bitmap. Copy, file export, and pin render a flattened result at native resolution. The UI owns selection and crop outlines, so those overlays stay out of the export. Solid fills write opaque pixels across integer pixel bounds.
+
+Window capture selects a visible rectangle in the same frozen desktop snapshot using the Windows z-order. The capture session keeps a lease during the delay, selection and editing. The standard region path still opens the editor on mouse release. The adjustment option adds move, resize and confirmation to the native overlay.
+
+Export PNG, JPG or WebP using WebView2 encoding and pass final bytes to scoped Rust commands. Use a dedicated Windows COM thread for the native save picker. Configured-folder exports write to unique temporary files and then rename them. Retained Qapture projects are opt-in local files with a JSON annotation header and the original pixel packet. The History UI exposes clearing and warns that editable files contain original pixels.
+
 ## Alternative stack
 
 If measured WebView2 overhead or window lifecycle behavior blocks agreed targets, compare C# with WPF and Win32 interop using the same fixture. WPF could replace the dashboard and editor host and would still need native capture, DPI, and clipboard integration. Switching the primary stack requires Product Owner approval.

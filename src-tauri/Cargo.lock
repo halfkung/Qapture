@@ -2721,7 +2721,7 @@ dependencies = [
 
 [[package]]
 name = "qapture"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -2729,6 +2729,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-global-shortcut",
  "tauri-plugin-single-instance",
+ "windows",
  "windows-sys 0.61.2",
 ]
 

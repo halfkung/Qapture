@@ -9,16 +9,21 @@ use serde::{Deserialize, Serialize};
 use crate::session::Mode;
 
 #[derive(Clone, Serialize, Deserialize)]
+#[serde(default)]
 pub struct Settings {
     pub region: String,
     pub full: String,
+    pub window: String,
+    pub history: String,
 }
 
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            region: "Ctrl+Shift+F9".into(),
-            full: "Ctrl+Shift+F10".into(),
+            region: "Alt+KeyA".into(),
+            full: "Alt+KeyS".into(),
+            window: "Alt+KeyW".into(),
+            history: "Alt+KeyQ".into(),
         }
     }
 }
@@ -28,6 +33,8 @@ impl Settings {
         match mode {
             Mode::Region => &self.region,
             Mode::Full => &self.full,
+            Mode::Window => &self.window,
+            Mode::History => &self.history,
         }
     }
 
@@ -35,6 +42,8 @@ impl Settings {
         match mode {
             Mode::Region => self.region = value,
             Mode::Full => self.full = value,
+            Mode::Window => self.window = value,
+            Mode::History => self.history = value,
         }
     }
 }
@@ -100,14 +109,24 @@ mod tests {
         let store = Store::new(&root);
         let (mut settings, warning) = store.load();
         assert!(warning.is_none());
-        assert_eq!(settings.region, "Ctrl+Shift+F9");
+        assert_eq!(settings.region, "Alt+KeyA");
         store.save(&settings).unwrap();
         settings.full = "Ctrl+Alt+KeyP".into();
         store.save(&settings).unwrap();
         assert_eq!(store.load().0.full, "Ctrl+Alt+KeyP");
+        fs::write(
+            &store.path,
+            br#"{"region":"Ctrl+Shift+F9","full":"Ctrl+Shift+F10"}"#,
+        )
+        .unwrap();
+        let (old, warning) = store.load();
+        assert!(warning.is_none());
+        assert_eq!(old.region, "Ctrl+Shift+F9");
+        assert_eq!(old.window, "Alt+KeyW");
+        assert_eq!(old.history, "Alt+KeyQ");
         fs::write(&store.path, b"invalid").unwrap();
         let (settings, warning) = store.load();
-        assert_eq!(settings.full, "Ctrl+Shift+F10");
+        assert_eq!(settings.full, "Alt+KeyS");
         assert!(warning.is_some());
         fs::remove_dir_all(root).unwrap();
     }

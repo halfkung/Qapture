@@ -1,13 +1,18 @@
-export const captureModes = ['region', 'full'] as const
-export type CaptureMode = (typeof captureModes)[number]
+export const captureModes = ['region', 'full', 'window'] as const
+export const shortcutModes = [...captureModes, 'history'] as const
+export type CaptureMode = (typeof shortcutModes)[number]
 
 export type ShortcutStatus = {
   settings: Record<CaptureMode, string>
   regionActive: boolean
   fullActive: boolean
+  windowActive: boolean
+  historyActive: boolean
   warning: string | null
   regionError: string | null
   fullError: string | null
+  windowError: string | null
+  historyError: string | null
 }
 
 type Keystroke = Pick<KeyboardEvent, 'code' | 'ctrlKey' | 'altKey' | 'shiftKey' | 'metaKey'>

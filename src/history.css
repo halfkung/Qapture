@@ -1,0 +1,24 @@
+.history-page { display: grid; gap: 12px; font-size: 14px; }
+.history-page h1 { font-size: 25px; font-weight: 700; }
+.history-page h2 { font-size: 16px; font-weight: 650; }
+.history-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.history-search { flex: 1 1 180px; }
+.history-page input:not([type="checkbox"], [type="file"]) {
+  min-width: 0; padding: 5px 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+}
+.history-list { display: grid; gap: 5px; max-height: 240px; overflow: auto; }
+.history-list li, .history-confirm {
+  display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between;
+  gap: 6px; padding: 6px 9px; background: var(--surface); border: 1px solid var(--line); border-radius: 7px;
+}
+.history-settings {
+  display: grid; align-items: start; gap: 8px; border: 1px solid var(--line);
+  border-radius: 9px; padding: 10px 12px; background: var(--surface);
+}
+.history-settings label, .history-search { display: flex; align-items: center; gap: 7px; }
+.history-page input[type="checkbox"] { accent-color: var(--primary); }
+.history-settings input:not([type="checkbox"]), .history-search input { flex: 1; }
+.history-muted { color: var(--muted); font-size: 12px; }
+.import-button { position: relative; cursor: pointer; }
+.import-button:focus-within { outline: 2px solid var(--focus); }
+.import-button input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }

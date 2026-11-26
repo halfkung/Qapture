@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.0 — Windows preview
+
+- Added visible-window capture, delayed capture, optional region adjustment, and a pixel magnifier.
+- Added selectable annotations, Thai and English multiline text, layer controls, crop, zoom, editor shortcuts, and undo/redo for document changes.
+- Added local PNG, JPG and WebP export, optional Auto Save, editable project retention and search, image import, named annotation presets, and a pinned preview.
+- Added the Window and History shortcuts and an opt-in Start with Windows setting. Existing shortcut settings carry forward.
+
 ## 0.1.2 — 26 November 2026
 
 - Open the dashboard at 920 × 740 logical pixels, bounded by the monitor work area. Compact layouts fit both shortcut conflicts and the expanded recorder.

@@ -1,5 +1,20 @@
 # Project status
 
+## 0.2.0 Windows preview
+
+Run the standalone `.local/release-0.2.0/Qapture.exe`, or quit older Qapture versions from the tray and run `.local/release-0.2.0/Qapture_0.2.0_x64-setup.exe` to install. The preview keeps the existing application identifier. The installer is unsigned.
+
+| Verification | Current result |
+| --- | --- |
+| Automated source and packaging | Frontend lint, 12 frontend tests, production bundle, Rust formatting, Clippy with warnings denied, 15 Rust tests, and optimized x64 NSIS packaging passed. |
+| Windows fixture | Verified delayed window capture at 720 × 460, adjusted region at 240 × 140, image import, Thai/English entry and text movement, undo/redo, crop, clipboard contention, pin creation, opt-in project retention, search, reopen, deletion, configured PNG export and automatic PNG/JPG/WebP export. Independently decoded the exported PNG and JPG dimensions. The PNG redaction sample was opaque. |
+| Manual | Reviewed the synthetic editor screenshot for Thai tone marks, multiline text and crop presentation. A native Save As operation returned successfully and the output PNG decoded as 500 × 300. |
+| Pending | Successful external paste, physical Thai IME input, sleep/wake, clean install/upgrade/uninstall, sign-in startup, Windows 10/4K/200% regression and the statistical reliability target. The clipboard was preserved. |
+
+See [Feature audit](FEATURE-AUDIT.md) for the baseline, implementation and advanced backlog.
+
+## Project foundations
+
 The prototype is implemented with Tauri 2, React, TypeScript, Vite, Tailwind CSS, and Rust. It includes tray capture, a single-instance dashboard, persistent shortcuts, native desktop capture and region selection, and native-resolution clipboard export. After the Phase 0 review, the capture UX preview added the initial quick editor.
 
 ## 0.1.2 Windows demo

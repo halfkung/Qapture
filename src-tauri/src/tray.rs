@@ -12,13 +12,17 @@ use crate::{
 pub fn install(app: &mut App) -> tauri::Result<()> {
     let region = MenuItem::with_id(app, "region", "Capture region", true, None::<&str>)?;
     let full = MenuItem::with_id(app, "full", "Copy full desktop", true, None::<&str>)?;
+    let window = MenuItem::with_id(app, "window", "Capture a window", true, None::<&str>)?;
+    let history = MenuItem::with_id(app, "history", "Capture history", true, None::<&str>)?;
     let cancel = MenuItem::with_id(app, "cancel", "Cancel capture", true, None::<&str>)?;
     let dashboard = MenuItem::with_id(app, "dashboard", "Open Qapture", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Quit Qapture", true, None::<&str>)?;
     let separator = PredefinedMenuItem::separator(app)?;
     let menu = Menu::with_items(
         app,
-        &[&region, &full, &cancel, &separator, &dashboard, &quit],
+        &[
+            &region, &full, &window, &cancel, &separator, &dashboard, &history, &quit,
+        ],
     )?;
 
     let builder = TrayIconBuilder::with_id("qapture")
@@ -28,8 +32,10 @@ pub fn install(app: &mut App) -> tauri::Result<()> {
         .on_menu_event(|app, event| match event.id().as_ref() {
             "region" => session::start_background(app, Mode::Region, true),
             "full" => session::start_background(app, Mode::Full, true),
+            "window" => session::start_background(app, Mode::Window, true),
             "cancel" => app.state::<Sessions>().cancel(),
             "dashboard" => dashboard::request(app),
+            "history" => dashboard::request_history(app),
             "quit" => app.exit(0),
             _ => {}
         })

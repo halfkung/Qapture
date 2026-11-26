@@ -10,13 +10,13 @@ Run the x64 NSIS installer for the new version. To update an existing installati
 
 ## Use Qapture
 
-1. Launch `qapture.exe`. You can close the dashboard and continue capturing from the tray.
-2. Press **Ctrl+Shift+F9** and drag a region. The selection stays bright while the desktop around it is dimmed. Release the mouse to open the quick editor, where you can use a pen, rectangle, or arrow and then select **Copy image** or press **Ctrl+C**. Press **Esc** in the overlay to cancel or in the editor to close it.
-3. Press **Ctrl+Shift+F10** to copy the full desktop across all attached monitors.
-4. To change a shortcut, open Qapture from the tray. Choose **Edit** beside an action under **Keyboard shortcuts**, press the new combination on your keyboard, and select **Save**. Press **Esc** or select **Cancel** to discard the edit.
-5. If Windows reports **Shortcut already in use**, choose **Use available shortcut**. Qapture retries the displayed combination, then tries alternatives and displays the one it registered. To keep the exact combination, first release it in the other app. The dashboard capture buttons also work while a shortcut is unavailable.
+1. Run `Qapture.exe`. Closing the dashboard leaves Qapture in the tray. Choose **Quit Qapture** from the tray to exit.
+2. Use **Alt+A** for a region, **Alt+S** to copy the full desktop, **Alt+W** to select a visible window, and **Alt+Q** to open History on a new installation. Existing installations keep their recorded keys. Check **Keyboard shortcuts** for the active keys. If a key is busy, use **Edit** or **Use available shortcut**.
+3. Drag and release to open a region in the editor. To move or resize before committing, enable **Adjust region before editing** on the dashboard, drag inside the selection or use its lower-right handle, then press **Enter**. Press **M** to toggle the magnifier and **Esc** to cancel. The dashboard **Delay** selector gives you time to open a context menu before capture.
+4. In the editor, choose a tool and draw on the canvas. Use **Select** to move or resize an object. For text, click or drag a box, type in **Annotation text**, then use the font and alignment controls. Tooltips show editor shortcuts. Use **Copy image** for the Windows clipboard, **Save** for PNG/JPG/WebP, or the pin button for an always-on-top preview. If you configured an export folder, **Save** writes there and **Save as…** opens the Windows dialog.
+5. Open **History** to import images and configure the export folder, file prefix, Auto Save and startup. Enable **Allow saving editable projects** and choose **Keep editable project** in the editor to retain a capture. History allows search, reopening, deletion and clearing local projects.
 
-Paste into an image-capable application such as Paint. Qapture publishes the image to the Windows clipboard and requests exclusion from Windows clipboard history and cloud sync.
+The clipboard path requests exclusion from Windows clipboard history and cloud sync. Solid redaction covers pixels in flattened exports. Editable History files contain original pixels and can expose redacted content when someone reopens them. Auto Save writes a flattened file when closing the editor if enabled. Full desktop copy uses the clipboard directly.
 
 ## Develop on Windows
 

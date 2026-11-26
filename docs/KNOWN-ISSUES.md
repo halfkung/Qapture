@@ -9,4 +9,9 @@
 - Successful copy and paste to independent applications and the 1080p clipboard target remain unverified on the kickoff workstation.
 - Windows or another application can intercept reserved shortcuts before they reach the recorder.
 - Windows reports a shortcut conflict without naming its owner. Check for an earlier Qapture in the tray. If all suggested keys are occupied, use Edit to record a different key or capture from the dashboard.
-- Quick editing provides pen, rectangle and arrow markup. Text, individual object transforms, and PNG save remain on the roadmap.
+- Window capture selects a visible desktop rectangle. Occluding windows, shadows and other composed pixels can appear. Minimized or hidden windows cannot be reconstructed by this path.
+- The Windows menu system can consume Alt before capture and dismiss a popup. Use a non-Alt shortcut or delayed dashboard capture for menus.
+- A saved editable project retains original pixels. Solid redaction protects the flattened export. Blur and mosaic are visual effects.
+- Start with Windows uses the executable path that was enabled. Re-enable the setting if you move the standalone executable. Installer removal of the startup entry needs qualification.
+- Large captures and full-frame annotation effects need memory and responsiveness verification at 4K. Mixed-DPI scaling and clean installer validation are tracked in the test plan.
+- The Windows Save As dialog can be slow to appear on the test workstation. Configuring an export folder enables direct Save and keeps Save As available for choosing another location.

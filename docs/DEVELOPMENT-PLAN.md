@@ -1,5 +1,11 @@
 # Development plan
 
+## Post-audit release gates
+
+The 0.2.0 preview includes the work listed under the implementation audit. Promote it after a disposable Windows desktop confirms independent clipboard paste, advanced text input and multi-monitor scenarios, and a signed-build install, upgrade and removal pass. Record real latency, memory and reliability measurements with sample counts.
+
+The next advanced milestone starts after the core and productivity gates. Begin with two-image comparison once a portable document layout can retain both originals and export a bounded native-size result. Keep scrolling capture, OCR and recording in the advanced audit for independent platform qualification.
+
 ## Phase 0
 
 1. Audit the Windows workstation and resolve development prerequisites locally where practical.

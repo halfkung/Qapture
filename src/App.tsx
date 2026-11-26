@@ -1,9 +1,10 @@
 import { invoke, isTauri } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
-import { ArrowRight, Check, Keyboard, Monitor, Pencil, Scan, Settings2 } from 'lucide-react'
+import { AppWindow, ArrowRight, Check, History as HistoryIcon, Keyboard, Monitor, Pencil, Scan, Settings2 } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import icon from '../src-tauri/icons/icon.ico?url'
-import { bindingFor, captureModes, keycaps, type CaptureMode, type ShortcutStatus } from './shortcuts'
+import { bindingFor, captureModes, keycaps, shortcutModes, type CaptureMode, type ShortcutStatus } from './shortcuts'
+import { History } from './History'
 
 type CaptureReport = {
   outcome: 'copied' | 'cancelled' | 'editing' | 'error'
@@ -16,11 +17,14 @@ type DashboardInfo = {
   shortcuts: ShortcutStatus
   phase: 'idle' | 'capturing' | 'selecting' | 'editing' | 'exporting'
   last: CaptureReport | null
+  history_requested: boolean
 }
 
 const actions = {
   region: { title: 'Capture a region', detail: 'Select an area, then edit', setting: 'Region capture', icon: Scan },
   full: { title: 'Copy full desktop', detail: 'Copy all connected displays', setting: 'Full desktop', icon: Monitor },
+  window: { title: 'Capture a window', detail: 'Pick a visible window', setting: 'Window capture', icon: AppWindow },
+  history: { setting: 'Capture history' },
 }
 
 function Keys({ binding }: { binding: string }) {
@@ -36,6 +40,9 @@ export function App() {
   const [shortcutError, setShortcutError] = useState('')
   const [shortcutNotice, setShortcutNotice] = useState('')
   const [capturePending, setCapturePending] = useState(false)
+  const [delaySeconds, setDelaySeconds] = useState(0)
+  const [adjust, setAdjust] = useState(false)
+  const [view, setView] = useState<'capture' | 'history'>('capture')
   const editButtons = useRef<Partial<Record<CaptureMode, HTMLButtonElement | null>>>({})
   const shortcutRecorder = useRef<HTMLButtonElement>(null)
   const shortcutEditor = useRef<HTMLFormElement>(null)
@@ -48,6 +55,10 @@ export function App() {
     const refresh = () => {
       const id = ++requestId
       return invoke<DashboardInfo>('dashboard_info').then((result) => {
+        if (active && result.history_requested) {
+          setRecording(undefined)
+          setView('history')
+        }
         if (active && requestId === id) setInfo(result)
       }).catch(() => {
         if (active) setError('Could not load Qapture’s local settings.')
@@ -99,7 +110,7 @@ export function App() {
     setShortcutNotice('')
     setCapturePending(true)
     try {
-      await invoke('start_capture', { mode })
+      await invoke('start_capture', { mode, options: { delaySeconds, adjust } })
     } catch (problem) {
       setError(String(problem))
     } finally {
@@ -170,11 +181,18 @@ export function App() {
         <div className="brand content-width">
           <img src={icon} alt="" width="28" height="28" />
           <span>Qapture</span>
-          <a className="settings-link" href="#shortcuts-heading"><Settings2 size={16} aria-hidden="true" /> Shortcuts</a>
+          {view === 'capture' ? <>
+            <a className="settings-link" href="#shortcuts-heading"><Settings2 size={16} aria-hidden="true" /> Shortcuts</a>
+            <button className="settings-link adjacent-link" disabled={busy || pendingShortcut !== undefined} onClick={() => {
+              setRecording(undefined)
+              setView('history')
+            }}><HistoryIcon size={16} aria-hidden="true" /> History</button>
+          </> : <button className="settings-link" onClick={() => setView('capture')}><Scan size={16} aria-hidden="true" /> Capture</button>}
         </div>
       </header>
 
       <main className="dashboard">
+        {view === 'history' ? <History /> : <>
         <section aria-labelledby="capture-heading">
           <div className="capture-hero">
             <div className="hero-copy">
@@ -190,7 +208,7 @@ export function App() {
             {captureModes.map((mode) => {
               const action = actions[mode]
               const ActionIcon = action.icon
-              const active = mode === 'region' ? shortcuts?.regionActive : shortcuts?.fullActive
+              const active = shortcuts?.[`${mode}Active`]
               return (
                 <button key={mode} className={`capture-card ${mode}`} disabled={!info || busy || capturePending || recording !== undefined}
                   onClick={() => void capture(mode)}>
@@ -207,6 +225,12 @@ export function App() {
               )
             })}
           </div>
+          <div className="capture-options">
+            <label>Delay <select value={delaySeconds} onChange={(event) => setDelaySeconds(+event.target.value)}>
+              <option value={0}>None</option><option value={3}>3 seconds</option><option value={5}>5 seconds</option><option value={10}>10 seconds</option>
+            </select></label>
+            <label><input type="checkbox" checked={adjust} onChange={(event) => setAdjust(event.target.checked)} /> Adjust region before editing</label>
+          </div>
         </section>
 
         <section aria-labelledby="shortcuts-heading" className="settings">
@@ -218,8 +242,8 @@ export function App() {
             </div>
           </div>
           <div className="shortcut-list">
-            {captureModes.map((mode) => {
-              const problem = mode === 'region' ? shortcuts?.regionError : shortcuts?.fullError
+            {shortcutModes.map((mode) => {
+              const problem = shortcuts?.[`${mode}Error`]
               const isEditing = recording === mode
               const editorId = `shortcut-editor-${mode}`
               const errorId = `${editorId}-error`
@@ -299,6 +323,7 @@ export function App() {
           </p>
           {busy && !editingCapture && <button className="text-button" onClick={() => void invoke('cancel_capture').catch((problem) => setError(String(problem)))}>Cancel</button>}
         </div>
+        </>}
       </main>
     </div>
   )

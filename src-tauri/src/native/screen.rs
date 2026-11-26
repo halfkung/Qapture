@@ -2,7 +2,8 @@ use std::{ffi::c_void, mem::size_of, ptr, slice};
 
 use serde::Serialize;
 use windows_sys::Win32::{
-    Foundation::{LPARAM, POINT, RECT},
+    Foundation::{HWND, LPARAM, POINT, RECT},
+    Graphics::Dwm::{DWMWA_CLOAKED, DWMWA_EXTENDED_FRAME_BOUNDS, DwmGetWindowAttribute},
     Graphics::Gdi::{
         BI_RGB, BITMAPINFO, BITMAPINFOHEADER, BitBlt, CAPTUREBLT, CreateCompatibleDC,
         CreateDIBSection, DIB_RGB_COLORS, DeleteDC, DeleteObject, EnumDisplayMonitors, GdiFlush,
@@ -14,7 +15,10 @@ use windows_sys::Win32::{
             DPI_AWARENESS_CONTEXT, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, GetDpiForMonitor,
             MDT_EFFECTIVE_DPI, SetThreadDpiAwarenessContext,
         },
-        WindowsAndMessaging::{GetPhysicalCursorPos, MONITORINFOF_PRIMARY},
+        WindowsAndMessaging::{
+            EnumWindows, GetPhysicalCursorPos, GetShellWindow, GetWindowRect, GetWindowTextLengthW,
+            IsIconic, IsWindowVisible, MONITORINFOF_PRIMARY,
+        },
     },
 };
 
@@ -22,6 +26,62 @@ use super::os_error;
 use crate::geometry::{Point, Rect};
 
 const MAX_DESKTOP_PIXELS: i64 = 64 * 1024 * 1024;
+
+pub fn visible_windows(frame: &Frame) -> Vec<Rect> {
+    let mut windows: Vec<Rect> = Vec::new();
+    unsafe {
+        EnumWindows(
+            Some(collect_window),
+            (&mut windows as *mut Vec<Rect>) as LPARAM,
+        )
+    };
+    windows
+        .into_iter()
+        .map(|bounds| {
+            frame
+                .bounds
+                .local_rect(bounds)
+                .intersection(frame.image_rect())
+        })
+        .filter(|rect| rect.has_area())
+        .collect()
+}
+
+unsafe extern "system" fn collect_window(window: HWND, data: LPARAM) -> i32 {
+    if unsafe {
+        window == GetShellWindow()
+            || IsWindowVisible(window) == 0
+            || IsIconic(window) != 0
+            || GetWindowTextLengthW(window) == 0
+    } {
+        return 1;
+    }
+    let mut cloaked = 0u32;
+    unsafe {
+        DwmGetWindowAttribute(
+            window,
+            DWMWA_CLOAKED as u32,
+            (&mut cloaked as *mut u32).cast(),
+            size_of::<u32>() as u32,
+        )
+    };
+    if cloaked != 0 {
+        return 1;
+    }
+    let mut rect = RECT::default();
+    let result = unsafe {
+        DwmGetWindowAttribute(
+            window,
+            DWMWA_EXTENDED_FRAME_BOUNDS as u32,
+            (&mut rect as *mut RECT).cast(),
+            size_of::<RECT>() as u32,
+        )
+    };
+    if result >= 0 || unsafe { GetWindowRect(window, &mut rect) } != 0 {
+        unsafe { &mut *(data as *mut Vec<Rect>) }.push(rect.into());
+    }
+    1
+}
 
 pub struct PhysicalDpi(DPI_AWARENESS_CONTEXT);
 

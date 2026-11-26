@@ -13,15 +13,21 @@ use crate::{
     settings::{Settings, Store},
 };
 
+const MODES: [Mode; 4] = [Mode::Region, Mode::Full, Mode::Window, Mode::History];
+
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ShortcutStatus {
     pub settings: Settings,
     pub region_active: bool,
     pub full_active: bool,
+    pub window_active: bool,
+    pub history_active: bool,
     pub warning: Option<String>,
     pub region_error: Option<String>,
     pub full_error: Option<String>,
+    pub window_error: Option<String>,
+    pub history_error: Option<String>,
 }
 
 pub struct Shortcuts {
@@ -29,7 +35,10 @@ pub struct Shortcuts {
     status: Mutex<ShortcutStatus>,
     region_id: AtomicU32,
     full_id: AtomicU32,
+    window_id: AtomicU32,
+    history_id: AtomicU32,
     recording: AtomicBool,
+    paused: Mutex<Vec<Mode>>,
 }
 
 impl Shortcuts {
@@ -41,13 +50,20 @@ impl Shortcuts {
                 settings,
                 region_active: false,
                 full_active: false,
+                window_active: false,
+                history_active: false,
                 warning,
                 region_error: None,
                 full_error: None,
+                window_error: None,
+                history_error: None,
             }),
             region_id: AtomicU32::new(0),
             full_id: AtomicU32::new(0),
+            window_id: AtomicU32::new(0),
+            history_id: AtomicU32::new(0),
             recording: AtomicBool::new(false),
+            paused: Mutex::new(Vec::new()),
         }
     }
 
@@ -59,10 +75,37 @@ impl Shortcuts {
         self.recording.store(recording, Ordering::Release);
     }
 
+    pub fn pause_for_text(&self, app: &AppHandle, pause: bool) {
+        let mut paused = self.paused.lock().unwrap();
+        let mut status = self.status.lock().unwrap();
+        if pause {
+            for mode in MODES {
+                if self.id(mode).load(Ordering::Acquire) != 0
+                    && let Ok(shortcut) = parse(status.settings.get(mode))
+                    && app.global_shortcut().unregister(shortcut).is_ok()
+                {
+                    self.id(mode).store(0, Ordering::Release);
+                    paused.push(mode);
+                }
+            }
+        } else {
+            for mode in paused.drain(..) {
+                let result = parse(status.settings.get(mode)).and_then(|shortcut| {
+                    Self::register(app, mode, shortcut).map_err(registration_message)?;
+                    self.id(mode).store(shortcut.id(), Ordering::Release);
+                    Ok(())
+                });
+                set_active(&mut status, mode, result.err());
+            }
+        }
+    }
+
     fn id(&self, mode: Mode) -> &AtomicU32 {
         match mode {
             Mode::Region => &self.region_id,
             Mode::Full => &self.full_id,
+            Mode::Window => &self.window_id,
+            Mode::History => &self.history_id,
         }
     }
 
@@ -90,7 +133,7 @@ impl Shortcuts {
 
     pub fn initialize(&self, app: &AppHandle) {
         let mut status = self.status.lock().unwrap();
-        for mode in [Mode::Region, Mode::Full] {
+        for mode in MODES {
             let result = parse(status.settings.get(mode)).and_then(|shortcut| {
                 Self::register(app, mode, shortcut).map_err(registration_message)?;
                 Ok(shortcut)
@@ -113,11 +156,7 @@ impl Shortcuts {
     ) -> Result<ShortcutStatus, String> {
         let candidate = parse(&binding)?;
         let mut status = self.status.lock().unwrap();
-        let other = match mode {
-            Mode::Region => Mode::Full,
-            Mode::Full => Mode::Region,
-        };
-        if parse(status.settings.get(other)).is_ok_and(|shortcut| shortcut == candidate) {
+        if other_bindings(&status.settings, mode).any(|shortcut| shortcut == candidate) {
             return Err("The other capture action already uses this shortcut.".into());
         }
         let id = self.id(mode);
@@ -136,14 +175,10 @@ impl Shortcuts {
         if self.id(mode).load(Ordering::Acquire) != 0 {
             return Ok(status.clone());
         }
-        let other = match mode {
-            Mode::Region => Mode::Full,
-            Mode::Full => Mode::Region,
-        };
         let (binding, candidate) = reserve_available(
             mode,
             status.settings.get(mode),
-            parse(status.settings.get(other)).ok(),
+            &other_bindings(&status.settings, mode).collect::<Vec<_>>(),
             |shortcut| Self::register(app, mode, shortcut),
         )?;
         self.commit_binding(app, &mut status, mode, binding, candidate, None)
@@ -180,6 +215,13 @@ impl Shortcuts {
     }
 }
 
+fn other_bindings(settings: &Settings, mode: Mode) -> impl Iterator<Item = Shortcut> {
+    MODES
+        .into_iter()
+        .filter(move |other| *other != mode)
+        .filter_map(|other| parse(settings.get(other)).ok())
+}
+
 fn already_in_use(error: &RegistrationError) -> bool {
     // The plugin converts the native error to a string before returning it.
     matches!(error, RegistrationError::GlobalHotkey(message) if message.starts_with("HotKey already registered:"))
@@ -196,12 +238,14 @@ fn registration_message(error: RegistrationError) -> String {
 fn reserve_available(
     mode: Mode,
     saved: &str,
-    other: Option<Shortcut>,
+    other: &[Shortcut],
     mut register: impl FnMut(Shortcut) -> Result<(), RegistrationError>,
 ) -> Result<(String, Shortcut), String> {
     let alternatives = match mode {
         Mode::Region => ["Ctrl+Alt+F9", "Ctrl+Shift+F7", "Ctrl+Alt+Shift+F9"],
         Mode::Full => ["Ctrl+Alt+F10", "Ctrl+Shift+F8", "Ctrl+Alt+Shift+F10"],
+        Mode::Window => ["Ctrl+Alt+F11", "Ctrl+Shift+F11", "Ctrl+Alt+Shift+F11"],
+        Mode::History => ["Ctrl+Alt+F12", "Ctrl+Shift+F12", "Ctrl+Alt+Shift+F12"],
     };
     let preferred = parse(saved).ok();
     for binding in std::iter::once(saved).chain(
@@ -212,7 +256,7 @@ fn reserve_available(
         let Ok(candidate) = parse(binding) else {
             continue;
         };
-        if Some(candidate) == other {
+        if other.contains(&candidate) {
             continue;
         }
         match register(candidate) {
@@ -249,6 +293,14 @@ fn set_active(status: &mut ShortcutStatus, mode: Mode, error: Option<String>) {
             status.full_active = error.is_none();
             status.full_error = error;
         }
+        Mode::Window => {
+            status.window_active = error.is_none();
+            status.window_error = error;
+        }
+        Mode::History => {
+            status.history_active = error.is_none();
+            status.history_error = error;
+        }
     }
 }
 
@@ -271,7 +323,7 @@ mod tests {
 
     #[test]
     fn recovery_uses_the_saved_chord_if_it_is_available_again() {
-        let result = reserve_available(Mode::Region, "Alt+KeyZ", None, |_| Ok(())).unwrap();
+        let result = reserve_available(Mode::Region, "Alt+KeyZ", &[], |_| Ok(())).unwrap();
         assert_eq!(result.0, "Alt+KeyZ");
     }
 
@@ -281,7 +333,7 @@ mod tests {
         let result = reserve_available(
             Mode::Region,
             "Alt+Control+F9",
-            parse("Ctrl+Shift+F7").ok(),
+            &[parse("Ctrl+Shift+F7").unwrap()],
             |key| {
                 tried.push(key);
                 if tried.len() == 1 {
@@ -301,7 +353,7 @@ mod tests {
     #[test]
     fn recovery_stops_on_other_windows_errors_and_reports_exhaustion() {
         let mut calls = 0;
-        let error = reserve_available(Mode::Full, "Ctrl+Shift+F10", None, |_| {
+        let error = reserve_available(Mode::Full, "Ctrl+Shift+F10", &[], |_| {
             calls += 1;
             Err(RegistrationError::GlobalHotkey(
                 "other Windows error".into(),
@@ -310,7 +362,7 @@ mod tests {
         .unwrap_err();
         assert_eq!(calls, 1);
         assert_eq!(error, "Windows could not activate this shortcut.");
-        let error = reserve_available(Mode::Full, "invalid", None, |_| {
+        let error = reserve_available(Mode::Full, "invalid", &[], |_| {
             Err(RegistrationError::GlobalHotkey(
                 "HotKey already registered: fixture".into(),
             ))

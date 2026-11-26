@@ -37,3 +37,25 @@ Baseline status for every item is **MISSING**.
 | Screen recording and GIF | Evaluate Windows Graphics Capture, encoder availability, capture indicators and temporary storage. |
 | Templates and automation actions | Reuse the document model once stable. Define local actions and explicit file-write settings. |
 | AI and integrations | Optional future scope. |
+
+## Implementation after the audit
+
+| Feature | 0.2.0 preview status |
+| --- | --- |
+| Region, full desktop, tray lifecycle, shortcuts and capture sessions | IMPLEMENTED AND VERIFIED in source checks and controlled Windows workflows. Existing bindings migrate forward. A fresh profile uses Alt+A, Alt+S, Alt+W and Alt+Q. An Alt chord can dismiss a Windows context menu before the frame is sampled. |
+| Window capture and delay | IMPLEMENTED AND VERIFIED with a visible-window fixture. GDI captures the composed desktop inside the selected window bounds. |
+| Region adjustment and magnifier | IMPLEMENTED AND VERIFIED for native adjustment. Move, lower-right resize and Enter produced the expected crop. M toggled in the fixture. Mixed-DPI magnifier alignment still needs visual qualification. |
+| Annotation shapes, transforms, styling, crop and undo/redo | IMPLEMENTED BUT UNVERIFIED across every tool. Source tests exercise history, transforms, Unicode metadata and bounds. The Windows fixture covered drawing, undo/redo, text movement and crop. |
+| Thai, English and Unicode text | IMPLEMENTED BUT UNVERIFIED with physical Thai keyboard/IME. The fixture typed multiple lines, visibly rendered Thai marks and reopened editable text. |
+| Native clipboard | PARTIALLY IMPLEMENTED for release acceptance. Native full-size and crop-packet paths exist. The cropped contention case passed. Successful inter-app paste and 1080p publication latency remain pending on a disposable clipboard. |
+| PNG, JPG, WebP, Auto Save, directory and naming | IMPLEMENTED AND VERIFIED on a controlled image. PNG and JPG dimensions were decoded independently. WebP signature, the flattened opaque redaction and configured output were checked. Native Save As was exercised on the fixture, with latency varying across runs. |
+| History, retention, search, deletion, reopen and image import | IMPLEMENTED AND VERIFIED on a controlled image. Users enable editable retention and explicitly keep a project. Auto Save produces a separate flattened file on editor close when enabled. |
+| Pin, presets and Start with Windows | IMPLEMENTED BUT UNVERIFIED end to end. Pin creation passed. Login, installer startup-entry removal, and persistent preset interaction need manual verification. |
+| Advanced features and public release | BLOCKED by release gates. Clipboard interoperability, sleep/wake, the full Windows and display matrix, release signing and install/upgrade/removal qualification are pending. The advanced feasibility table remains active. |
+
+### Implementation files and outputs
+
+- Native capture and desktop integration are in `session.rs`, `native/overlay.rs`, `native/screen.rs`, `shortcuts.rs`, `settings.rs`, `tray.rs` and `startup.rs`.
+- Native export, pinning and editable projects are in `editor.rs`, `export.rs`, `pin.rs` and `storage.rs`. IPC registration and window-specific capabilities are defined in `main.rs`, `build.rs` and `capabilities/`.
+- The dashboard and history use `App.tsx`, `History.tsx` and their styles. The editor, preview and document model use `Editor.tsx`, `EditorProperties.tsx`, `Pin.tsx`, `editor-document.ts`, `markup.ts` and `editor.css`.
+- Build outputs and measured and pending verification are recorded in [Project status](PROJECT-STATUS.md). The [README](../README.md) covers setup and launch.

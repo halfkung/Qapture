@@ -1,0 +1,6 @@
+{
+  "identifier": "pinned-capture",
+  "description": "Read the flattened image for the pinned preview",
+  "windows": ["pin"],
+  "permissions": ["allow-load-pin-image"]
+}

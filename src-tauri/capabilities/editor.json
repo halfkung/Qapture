@@ -5,6 +5,16 @@
   "permissions": [
     "allow-load-edit-image",
     "allow-copy-edited-image",
-    "core:window:allow-close"
+    "allow-save-edited-image",
+    "allow-save-to-export-folder",
+    "allow-auto-save-image",
+    "allow-load-edit-document",
+    "allow-output-preferences",
+    "allow-keep-project",
+    "allow-set-editor-text-input",
+    "allow-pin-image",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "core:window:allow-destroy"
   ]
 }

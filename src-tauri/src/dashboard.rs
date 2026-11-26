@@ -1,6 +1,24 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+
 use tauri::{AppHandle, Manager, WebviewWindowBuilder};
 
 use crate::session::{self, Phase, Sessions};
+
+#[derive(Default)]
+pub struct HistoryRequest(AtomicBool);
+
+impl HistoryRequest {
+    pub fn take(&self) -> bool {
+        self.0.swap(false, Ordering::AcqRel)
+    }
+}
+
+pub fn request_history(app: &AppHandle) {
+    app.state::<HistoryRequest>()
+        .0
+        .store(true, Ordering::Release);
+    request(app);
+}
 
 pub fn show(app: &AppHandle) -> tauri::Result<()> {
     match app.state::<Sessions>().phase() {

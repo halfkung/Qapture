@@ -3,7 +3,7 @@ use std::{
         Mutex,
         atomic::{AtomicBool, Ordering},
     },
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use serde::{Deserialize, Serialize};
@@ -17,11 +17,20 @@ use crate::{
     native::{clipboard, overlay, screen},
 };
 
-#[derive(Clone, Copy, Deserialize, Serialize)]
+#[derive(Clone, Copy, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Mode {
     Region,
     Full,
+    Window,
+    History,
+}
+
+#[derive(Clone, Copy, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct CaptureOptions {
+    pub adjust: bool,
+    pub delay_seconds: u8,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -72,6 +81,25 @@ impl Sessions {
         }
     }
 
+    pub fn open_editor(
+        &self,
+        app: &AppHandle,
+        image: editor::Image,
+        document: Option<serde_json::Value>,
+    ) -> Result<(), String> {
+        self.acquire()?;
+        *self.phase.lock().unwrap() = Phase::Editing;
+        if let Err(error) = editor::open_document(app, image, true, document) {
+            self.finish_editing();
+            return Err(error);
+        }
+        if let Some(window) = app.get_webview_window("main") {
+            let _ = window.close();
+        }
+        notify(app);
+        Ok(())
+    }
+
     pub fn phase(&self) -> Phase {
         *self.phase.lock().unwrap()
     }
@@ -111,7 +139,7 @@ pub fn notify(app: &AppHandle) {
 }
 
 pub fn start_background(app: &AppHandle, mode: Mode, settle_desktop: bool) {
-    if let Err(message) = start(app, mode, false, settle_desktop)
+    if let Err(message) = start(app, mode, false, settle_desktop, CaptureOptions::default())
         && message != BUSY
     {
         app.state::<Diagnostics>().record(Report {
@@ -129,7 +157,15 @@ pub fn start(
     mode: Mode,
     hide_dashboard: bool,
     settle_desktop: bool,
+    options: CaptureOptions,
 ) -> Result<(), String> {
+    if mode == Mode::History {
+        dashboard::request_history(app);
+        return Ok(());
+    }
+    if options.delay_seconds > 10 {
+        return Err("Capture delay must be between 0 and 10 seconds.".into());
+    }
     let started = Instant::now();
     let dashboard = hide_dashboard
         .then(|| app.get_webview_window("main"))
@@ -156,12 +192,24 @@ pub fn start(
                 clipboard_ms: None,
                 message: "Capture cancelled.".into(),
             };
+            let deadline = Instant::now() + Duration::from_secs(options.delay_seconds.into());
+            while Instant::now() < deadline && !sessions.cancelled.load(Ordering::Acquire) {
+                std::thread::sleep(
+                    Duration::from_millis(20)
+                        .min(deadline.saturating_duration_since(Instant::now())),
+                );
+            }
             match run(
                 &app_worker,
                 &sessions,
                 mode,
                 settle_desktop,
-                started,
+                if options.delay_seconds == 0 {
+                    started
+                } else {
+                    Instant::now()
+                },
+                options.adjust,
                 &mut report,
             ) {
                 Ok(Outcome::Edited(image)) => {
@@ -221,6 +269,7 @@ fn run(
     mode: Mode,
     settle_desktop: bool,
     started: Instant,
+    adjust: bool,
     report: &mut Report,
 ) -> Result<Outcome, String> {
     let _dpi = screen::PhysicalDpi::enter()?;
@@ -232,14 +281,30 @@ fn run(
     }
     let frame = screen::capture()?;
     match mode {
-        Mode::Region => {
+        Mode::Region | Mode::Window => {
+            let windows = if matches!(mode, Mode::Window) {
+                let windows = screen::visible_windows(&frame);
+                if windows.is_empty() {
+                    return Err("There are no visible windows to capture.".into());
+                }
+                Some(windows)
+            } else {
+                None
+            };
             if !sessions.advance(Phase::Selecting) {
                 return Ok(Outcome::Cancelled);
             }
-            let region = overlay::select(&frame, &sessions.cancelled, started, |elapsed| {
-                report.overlay_ms = Some(milliseconds(elapsed));
-                notify(app);
-            })?;
+            let region = overlay::select(
+                &frame,
+                adjust,
+                windows,
+                &sessions.cancelled,
+                started,
+                |elapsed| {
+                    report.overlay_ms = Some(milliseconds(elapsed));
+                    notify(app);
+                },
+            )?;
             let Some(region) = region else {
                 return Ok(Outcome::Cancelled);
             };
@@ -257,6 +322,7 @@ fn run(
             report.clipboard_ms = Some(milliseconds(export_started.elapsed()));
             result.map(|()| Outcome::Copied)
         }
+        Mode::History => unreachable!("History requests are handled before capture starts"),
     }
 }
 

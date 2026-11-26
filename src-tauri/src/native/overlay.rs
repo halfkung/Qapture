@@ -16,12 +16,12 @@ use windows_sys::Win32::{
             BeginPaint, BitBlt, CreateFontW, CreateSolidBrush, DEFAULT_CHARSET, DT_CENTER,
             DT_NOPREFIX, DT_SINGLELINE, DT_VCENTER, DeleteObject, DrawTextW, EndPaint, FillRect,
             FrameRect, HDC, HFONT, InvalidateRect, PAINTSTRUCT, SRCCOPY, SelectObject, SetBkMode,
-            SetTextColor, TRANSPARENT, UpdateWindow,
+            SetTextColor, StretchBlt, TRANSPARENT, UpdateWindow,
         },
     },
     System::LibraryLoader::GetModuleHandleW,
     UI::{
-        Input::KeyboardAndMouse::{ReleaseCapture, SetCapture, SetFocus, VK_ESCAPE},
+        Input::KeyboardAndMouse::{ReleaseCapture, SetCapture, SetFocus, VK_ESCAPE, VK_RETURN},
         WindowsAndMessaging::*,
     },
 };
@@ -101,11 +101,40 @@ impl Drop for Chrome {
 struct Drag {
     start: Point,
     current: Point,
+    operation: Operation,
+}
+
+#[derive(Clone, Copy)]
+enum Operation {
+    Draw,
+    Move(Rect),
+    Resize(Rect),
 }
 
 impl Drag {
-    fn rect(self) -> Rect {
-        Rect::between(self.start, self.current)
+    fn rect(self, bounds: Rect) -> Rect {
+        match self.operation {
+            Operation::Draw => Rect::between(self.start, self.current),
+            Operation::Move(rect) => {
+                let dx =
+                    (self.current.x - self.start.x).clamp(-rect.left, bounds.right - rect.right);
+                let dy =
+                    (self.current.y - self.start.y).clamp(-rect.top, bounds.bottom - rect.bottom);
+                Rect {
+                    left: rect.left + dx,
+                    right: rect.right + dx,
+                    top: rect.top + dy,
+                    bottom: rect.bottom + dy,
+                }
+            }
+            Operation::Resize(rect) => Rect {
+                right: (rect.right + self.current.x - self.start.x)
+                    .clamp(rect.left + 1, bounds.right),
+                bottom: (rect.bottom + self.current.y - self.start.y)
+                    .clamp(rect.top + 1, bounds.bottom),
+                ..rect
+            },
+        }
     }
 }
 
@@ -115,15 +144,107 @@ struct Overlay<'a> {
     shade: Dib,
     chrome: Chrome,
     drag: Cell<Option<Drag>>,
+    selected: Cell<Option<Rect>>,
+    adjust: bool,
+    windows: Option<Vec<Rect>>,
+    hover: Cell<Option<Rect>>,
+    magnifier: Cell<bool>,
+    pointer: Cell<Point>,
     result: Cell<Option<Rect>>,
 }
 
 impl Overlay<'_> {
     fn visible_selection(&self) -> Option<Rect> {
+        if self.windows.is_some() {
+            return self.hover.get();
+        }
         self.drag
             .get()
-            .map(Drag::rect)
+            .map(|drag| drag.rect(self.frame.image_rect()))
+            .or_else(|| self.selected.get())
             .filter(|rect| rect.has_area())
+    }
+
+    fn confirm(&self, window: HWND, rect: Rect) {
+        self.result.set(Some(rect));
+        unsafe { DestroyWindow(window) };
+    }
+
+    fn track(&self, window: HWND, point: Point) {
+        let before = self.visible_selection();
+        let magnifier = self.magnifier_rect();
+        self.pointer.set(point);
+        if let Some(windows) = &self.windows {
+            self.hover.set(
+                windows
+                    .iter()
+                    .copied()
+                    .find(|bounds| bounds.contains(point)),
+            );
+        }
+        if let Some(drag) = self.drag.get() {
+            self.drag.set(Some(Drag {
+                current: point,
+                ..drag
+            }));
+        }
+        self.invalidate(window, before);
+        if self.magnifier.get() {
+            unsafe {
+                InvalidateRect(window, &magnifier.into(), 0);
+                InvalidateRect(window, &self.magnifier_rect().into(), 0);
+            }
+        }
+    }
+
+    fn magnifier_rect(&self) -> Rect {
+        let point = self.pointer.get();
+        let display = self
+            .frame
+            .displays
+            .iter()
+            .map(|display| self.frame.bounds.local_rect(display.bounds))
+            .find(|rect| rect.contains(point))
+            .unwrap_or(self.frame.image_rect());
+        let size = 96.min(display.width()).min(display.height());
+        let x = if point.x + 24 + size <= display.right {
+            point.x + 24
+        } else {
+            point.x - 24 - size
+        };
+        let left = x.clamp(display.left, display.right - size);
+        let top = (point.y + 24).clamp(display.top, display.bottom - size);
+        Rect {
+            left,
+            top,
+            right: left + size,
+            bottom: top + size,
+        }
+    }
+
+    fn paint_magnifier(&self, dc: HDC) {
+        let glass = self.magnifier_rect();
+        let point = self.pointer.get();
+        let bounds = self.frame.image_rect();
+        let width = 15.min(bounds.width());
+        let height = 15.min(bounds.height());
+        fill(dc, glass, PANEL_BG, false);
+        unsafe {
+            StretchBlt(
+                dc,
+                glass.left,
+                glass.top,
+                glass.width(),
+                glass.height(),
+                self.frame.dib.dc(),
+                (point.x - 7).clamp(0, bounds.right - width),
+                (point.y - 7).clamp(0, bounds.bottom - height),
+                width,
+                height,
+                SRCCOPY,
+            );
+        }
+        fill(dc, glass, BORDER, true);
     }
 
     fn invalidate(&self, window: HWND, before: Option<Rect>) {
@@ -161,9 +282,25 @@ impl Overlay<'_> {
                         blit(dc, self.frame.dib.dc(), exposed);
                     }
                     fill(dc, rect, BORDER, true);
+                    if self.adjust && self.windows.is_none() {
+                        fill(
+                            dc,
+                            Rect {
+                                left: rect.right - 7,
+                                top: rect.bottom - 7,
+                                right: rect.right,
+                                bottom: rect.bottom,
+                            },
+                            BORDER,
+                            false,
+                        );
+                    }
                 }
                 if self.chrome.panel.intersection(dirty).has_area() {
                     self.paint_panel(dc, selection);
+                }
+                if self.magnifier.get() && self.magnifier_rect().intersection(dirty).has_area() {
+                    self.paint_magnifier(dc);
                 }
             }
         }
@@ -173,16 +310,23 @@ impl Overlay<'_> {
     fn paint_panel(&self, dc: HDC, selection: Option<Rect>) {
         let panel = self.chrome.panel;
         fill(dc, panel, PANEL_BG, false);
-        let message = selection.map_or_else(
-            || String::from("Drag to select  ·  Release to edit  ·  Esc to cancel"),
-            |rect| {
-                format!(
-                    "{} × {} px   ·   Release to edit",
-                    rect.width(),
-                    rect.height()
-                )
-            },
-        );
+        let message = match (selection, self.windows.is_some(), self.adjust) {
+            (Some(rect), true, _) => {
+                format!("{} × {} px  ·  Click to edit", rect.width(), rect.height())
+            }
+            (Some(rect), _, true) => format!(
+                "{} × {} px  ·  Move / resize  ·  Enter to edit",
+                rect.width(),
+                rect.height()
+            ),
+            (Some(rect), _, _) => format!(
+                "{} × {} px  ·  Release to edit",
+                rect.width(),
+                rect.height()
+            ),
+            (None, true, _) => "Point at a window to select it  ·  Esc to cancel".into(),
+            _ => "Drag to select  ·  M to magnify  ·  Esc to cancel".into(),
+        };
         let old = unsafe { SelectObject(dc, self.chrome.font) };
         unsafe {
             SetBkMode(dc, TRANSPARENT as i32);
@@ -256,36 +400,65 @@ unsafe extern "system" fn window_proc(
         WM_ERASEBKGND => return 1,
         WM_LBUTTONDOWN => {
             let point = state.point(lparam);
+            if let Some(windows) = &state.windows {
+                if let Some(rect) = windows
+                    .iter()
+                    .copied()
+                    .find(|bounds| bounds.contains(point))
+                {
+                    state.confirm(window, rect);
+                }
+                return 0;
+            }
             let before = state.visible_selection();
+            if let Some(rect) = state.selected.get()
+                && state.chrome.panel.contains(point)
+            {
+                state.confirm(window, rect);
+                return 0;
+            }
+            let operation = state.selected.get().map_or(Operation::Draw, |rect| {
+                if (point.x - rect.right).abs() <= 12 && (point.y - rect.bottom).abs() <= 12 {
+                    Operation::Resize(rect)
+                } else if rect.contains(point) {
+                    Operation::Move(rect)
+                } else {
+                    Operation::Draw
+                }
+            });
             state.drag.set(Some(Drag {
                 start: point,
                 current: point,
+                operation,
             }));
             unsafe { SetCapture(window) };
             state.invalidate(window, before);
         }
         WM_MOUSEMOVE => {
-            if let Some(drag) = state.drag.get() {
-                let point = state.point(lparam);
-                if point != drag.current {
-                    let before = state.visible_selection();
-                    state.drag.set(Some(Drag {
-                        current: point,
-                        ..drag
-                    }));
-                    state.invalidate(window, before);
-                }
+            let point = state.point(lparam);
+            if point != state.pointer.get()
+                && (state.drag.get().is_some() || state.windows.is_some() || state.magnifier.get())
+            {
+                state.track(window, point);
+            } else {
+                state.pointer.set(point);
             }
         }
         WM_LBUTTONUP => {
             let before = state.visible_selection();
             if let Some(drag) = state.drag.take() {
-                let selection = Rect::between(drag.start, state.point(lparam));
+                let selection = Drag {
+                    current: state.point(lparam),
+                    ..drag
+                }
+                .rect(state.frame.image_rect());
                 unsafe { ReleaseCapture() };
-                if selection.has_area() {
-                    state.result.set(Some(selection));
-                    unsafe { DestroyWindow(window) };
+                if selection.has_area() && !state.adjust {
+                    state.confirm(window, selection);
                 } else {
+                    if selection.has_area() {
+                        state.selected.set(Some(selection));
+                    }
                     state.invalidate(window, before);
                 }
             }
@@ -298,6 +471,15 @@ unsafe extern "system" fn window_proc(
         }
         WM_KEYDOWN if wparam == usize::from(VK_ESCAPE) => {
             unsafe { DestroyWindow(window) };
+        }
+        WM_KEYDOWN if wparam == usize::from(VK_RETURN) => {
+            if let Some(rect) = state.selected.get().or_else(|| state.hover.get()) {
+                state.confirm(window, rect);
+            }
+        }
+        WM_KEYDOWN if wparam == b'M' as usize && (lparam & (1 << 30)) == 0 => {
+            state.magnifier.set(!state.magnifier.get());
+            unsafe { InvalidateRect(window, &state.magnifier_rect().into(), 0) };
         }
         WM_TIMER if state.cancelled.load(Ordering::Acquire) => {
             unsafe { DestroyWindow(window) };
@@ -339,6 +521,8 @@ fn register_class(instance: HINSTANCE) -> Result<(), String> {
 
 pub fn select(
     frame: &Frame,
+    adjust: bool,
+    windows: Option<Vec<Rect>>,
     cancelled: &AtomicBool,
     started: Instant,
     presented: impl FnOnce(Duration),
@@ -352,12 +536,25 @@ pub fn select(
         return Err(os_error("Obtaining the overlay application handle"));
     }
     register_class(instance)?;
+    let pointer = bounds.local(screen::cursor().unwrap_or(Point {
+        x: bounds.left,
+        y: bounds.top,
+    }));
+    let hover = windows
+        .as_ref()
+        .and_then(|rects| rects.iter().copied().find(|rect| rect.contains(pointer)));
     let state = Overlay {
         frame,
         cancelled,
         shade: frame.dimmed()?,
         chrome: Chrome::new(frame)?,
         drag: Cell::new(None),
+        selected: Cell::new(None),
+        adjust,
+        windows,
+        hover: Cell::new(hover),
+        magnifier: Cell::new(false),
+        pointer: Cell::new(pointer),
         result: Cell::new(None),
     };
     let window = unsafe {

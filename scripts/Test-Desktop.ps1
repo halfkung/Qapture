@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory)] [string] $Executable,
     [ValidateRange(1, 1000)] [int] $Samples = 20,
-    [switch] $TestClipboard
+    [switch] $TestClipboard,
+    [switch] $UseFunctionKeys
 )
 
 $ErrorActionPreference = 'Stop'
@@ -46,8 +47,12 @@ public static class QaptureProbe {
 
     public static void Key(byte key, bool down) { keybd_event(key, 0, down ? 0u : 2u, UIntPtr.Zero); }
     public static void Tap(byte key) { Key(key, true); Key(key, false); }
-    public static void Shortcut(byte key) {
-        Key(0x11, true); Key(0x10, true); Tap(key); Key(0x10, false); Key(0x11, false);
+    public static void Shortcut(byte key, bool functionKeys) {
+        if (functionKeys) {
+            Key(0x11, true); Key(0x10, true); Tap(key); Key(0x10, false); Key(0x11, false);
+        } else {
+            Key(0x12, true); Tap(key); Key(0x12, false);
+        }
     }
     public static uint ScreenColor(int x, int y) {
         var dc = GetDC(IntPtr.Zero);
@@ -101,7 +106,7 @@ function Wait-Reports([int] $Count) {
 }
 
 function Open-Overlay([switch] $VisibleOnly) {
-    [QaptureProbe]::Shortcut(0x78)
+    [QaptureProbe]::Shortcut($regionKey, $UseFunctionKeys)
     Wait-For {
         $window = [QaptureProbe]::FindWindow('QaptureSelectionOverlay', 'Qapture region selection')
         if ($window -ne [IntPtr]::Zero -and [QaptureProbe]::IsWindowVisible($window) -and
@@ -139,6 +144,9 @@ function Get-ProcessTree([int] $Root) {
 }
 
 $exe = (Resolve-Path -LiteralPath $Executable).Path
+$regionKey = if ($UseFunctionKeys) { 0x78 } else { 0x41 }
+$fullKey = if ($UseFunctionKeys) { 0x79 } else { 0x53 }
+$modifiers = if ($UseFunctionKeys) { 6 } else { 1 }
 $previousDiagnostics = $env:QAPTURE_DIAGNOSTICS
 $log = Join-Path ([IO.Path]::GetTempPath()) "qapture-desktop-$PID.jsonl"
 $env:QAPTURE_DIAGNOSTICS = $log
@@ -207,8 +215,8 @@ try {
     $right = ($windows | ForEach-Object { $_.Right } | Measure-Object -Maximum).Maximum
     $bottom = ($windows | ForEach-Object { $_.Bottom } | Measure-Object -Maximum).Maximum
     Assert ($bounds.Left -eq $left -and $bounds.Top -eq $top -and $bounds.Right -eq $right -and $bounds.Bottom -eq $bottom) 'Overlay bounds differed from the physical monitor union.'
-    [QaptureProbe]::Shortcut(0x78)
-    [QaptureProbe]::Shortcut(0x79)
+    [QaptureProbe]::Shortcut($regionKey, $UseFunctionKeys)
+    [QaptureProbe]::Shortcut($fullKey, $UseFunctionKeys)
     Start-Sleep -Milliseconds 100
     Assert ([QaptureProbe]::FindWindow('QaptureSelectionOverlay', 'Qapture region selection') -eq $overlay) 'Repeated hotkeys replaced the active overlay.'
 
@@ -220,12 +228,15 @@ try {
     $dropdown.Close()
     [Windows.Forms.Application]::DoEvents()
     Start-RegionDrag $regionX $regionY $regionWidth $regionHeight
-    Wait-For { [QaptureProbe]::ScreenColor($menuX, $menuY) -eq $menuColor } 'the frozen dropdown pixel' | Out-Null
+    if ($UseFunctionKeys) {
+        Wait-For { [QaptureProbe]::ScreenColor($menuX, $menuY) -eq $menuColor } 'the frozen dropdown pixel' | Out-Null
+    }
     Wait-For { [QaptureProbe]::ScreenColor(($regionX + 9), ($regionY - 15)) -eq 0x131e36 } 'the dimmed pixels outside the selection' | Out-Null
     Wait-For { [QaptureProbe]::GetForegroundWindow() -eq $overlay } 'selection keyboard focus' | Out-Null
     $editor = Complete-RegionDrag
     Wait-Reports 1
-    'Passed: physical monitor bounds, frozen dropdown, dimmed background, overlapping hotkey rejection, and direct editor handoff.'
+    'Passed: physical monitor bounds, dimmed background, overlapping hotkey rejection, and direct editor handoff.'
+    if ($UseFunctionKeys) { 'Passed: frozen dropdown pixel with the configured function-key chord.' }
 
     if ($TestClipboard) {
         Wait-For {
@@ -239,13 +250,15 @@ try {
             Start-Sleep -Milliseconds 160
             ([QaptureProbe]::ClipboardPixel($regionWidth, $regionHeight, 8, 12)) -eq 0x345191
         } 'editor clipboard output' | Out-Null
-        Assert (([QaptureProbe]::ClipboardPixel($regionWidth, $regionHeight, ($menuX - $regionX), ($menuY - $regionY))) -eq $menuColor) 'Captured dropdown pixel did not match.'
+        if ($UseFunctionKeys) {
+            Assert (([QaptureProbe]::ClipboardPixel($regionWidth, $regionHeight, ($menuX - $regionX), ($menuY - $regionY))) -eq $menuColor) 'Captured dropdown pixel did not match.'
+        }
     }
     [QaptureProbe]::PostMessage($editor, 0x10, [UIntPtr]::Zero, [IntPtr]::Zero) | Out-Null
     Wait-For { ![QaptureProbe]::IsWindowVisible($editor) } 'editor close' | Out-Null
 
     if ($TestClipboard) {
-        [QaptureProbe]::Shortcut(0x79)
+        [QaptureProbe]::Shortcut($fullKey, $UseFunctionKeys)
         Wait-Reports 2
         Assert (([QaptureProbe]::ClipboardPixel(($right - $left), ($bottom - $top), ($regionX - $left), ($regionY - $top))) -eq 0x345191) 'Full desktop clipboard pixel did not match.'
         'Passed: native region and full desktop clipboard dimensions and fixture pixels.'
@@ -253,7 +266,7 @@ try {
     } else {
         Assert ([QaptureProbe]::OpenClipboard($fixture.Handle)) 'Could not reserve clipboard for the full desktop test.'
         try {
-            [QaptureProbe]::Shortcut(0x79)
+            [QaptureProbe]::Shortcut($fullKey, $UseFunctionKeys)
             Wait-Reports 2
         } finally { [QaptureProbe]::CloseClipboard() | Out-Null }
         $report = Read-Entries | Where-Object event -eq 'capture-finished' | Select-Object -Last 1
@@ -299,7 +312,7 @@ try {
     $p95 = $warm[[Math]::Ceiling(.95 * $warm.Count) - 1]
     'Warm overlay: p95 {0:N1} ms, max {1:N1} ms, n={2}' -f $p95, $warm[-1], $warm.Count
     'Dashboard startup: {0:N1} ms from launch, {1:N1} ms from Rust entry, n=1' -f $startup.Elapsed.TotalMilliseconds, ($entries | Where-Object event -eq 'dashboard-ready').startupMs
-    Assert (![QaptureProbe]::RegisterHotKey($fixture.Handle, 37, 6, 0x78)) 'The app did not reserve its default global shortcut.'
+    Assert (![QaptureProbe]::RegisterHotKey($fixture.Handle, 37, $modifiers, $regionKey)) 'The app did not reserve its expected global shortcut.'
     $second = Start-Process -FilePath $exe -PassThru
     Assert ($second.WaitForExit(5000) -and !$app.HasExited) 'Second launch did not defer to the running app.'
     Wait-For {

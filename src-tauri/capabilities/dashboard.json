@@ -11,6 +11,15 @@
     "allow-cancel-capture",
     "allow-set-shortcut",
     "allow-recover-shortcut",
-    "allow-set-shortcut-recording"
+    "allow-set-shortcut-recording",
+    "allow-output-preferences",
+    "allow-set-output-preferences",
+    "allow-list-projects",
+    "allow-delete-project",
+    "allow-clear-projects",
+    "allow-reopen-project",
+    "allow-import-image",
+    "allow-startup-enabled",
+    "allow-set-startup"
   ]
 }

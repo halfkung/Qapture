@@ -11,8 +11,8 @@ describe('editor pixel coordinates', () => {
 
   it('keeps brush dots and ignores zero-area rectangles', () => {
     const points = [{ x: 6, y: 4 }]
-    expect(visibleMark({ tool: 'pen', color: '#ff0', width: 3, points })).toBe(true)
-    expect(visibleMark({ tool: 'rectangle', color: '#ff0', width: 3, points })).toBe(false)
+    expect(visibleMark({ tool: 'pen', points })).toBe(true)
+    expect(visibleMark({ tool: 'rectangle', points })).toBe(false)
   })
 
   it('decodes the native RGBA packet and rejects a mismatched length', () => {

@@ -19,6 +19,10 @@ pub struct Image {
 }
 
 impl Image {
+    pub fn into_packet(self) -> (i32, i32, Vec<u8>) {
+        (self.width, self.height, self.packet)
+    }
+
     pub fn from_frame(frame: &Frame, rect: Rect) -> Result<Self, String> {
         let rect = rect.intersection(frame.image_rect());
         if !rect.has_area() {
@@ -55,12 +59,22 @@ fn crop(source: &[u8], source_width: usize, rect: Rect) -> Image {
 struct EditSession {
     image: Image,
     return_to_dashboard: bool,
+    document: Option<serde_json::Value>,
 }
 
 #[derive(Default)]
 pub struct Editor(Mutex<Option<EditSession>>);
 
 pub fn open(app: &AppHandle, image: Image, return_to_dashboard: bool) -> Result<(), String> {
+    open_document(app, image, return_to_dashboard, None)
+}
+
+pub fn open_document(
+    app: &AppHandle,
+    image: Image,
+    return_to_dashboard: bool,
+    document: Option<serde_json::Value>,
+) -> Result<(), String> {
     let config = app
         .config()
         .app
@@ -72,6 +86,7 @@ pub fn open(app: &AppHandle, image: Image, return_to_dashboard: bool) -> Result<
     *editor.0.lock().unwrap() = Some(EditSession {
         image,
         return_to_dashboard,
+        document,
     });
     let result = WebviewWindowBuilder::from_config(app, config).and_then(|builder| builder.build());
     match result {
@@ -84,6 +99,44 @@ pub fn open(app: &AppHandle, image: Image, return_to_dashboard: bool) -> Result<
             Err(format!("Could not open the editor. {error}"))
         }
     }
+}
+
+impl Image {
+    pub fn from_packet(packet: Vec<u8>) -> Result<Self, String> {
+        let Some(header) = packet.get(..8) else {
+            return Err("The image is incomplete.".into());
+        };
+        let width = i32::from_le_bytes(header[..4].try_into().unwrap());
+        let height = i32::from_le_bytes(header[4..].try_into().unwrap());
+        if width < 1
+            || height < 1
+            || i64::from(width) * i64::from(height) > 64 * 1024 * 1024
+            || packet.len() != 8 + width as usize * height as usize * 4
+        {
+            return Err("The image has invalid or unsupported dimensions.".into());
+        }
+        Ok(Self {
+            width,
+            height,
+            packet,
+        })
+    }
+}
+
+impl Editor {
+    pub fn with_original<T>(
+        &self,
+        use_image: impl FnOnce(&[u8]) -> Result<T, String>,
+    ) -> Result<T, String> {
+        let session = self.0.lock().unwrap();
+        let edit = session.as_ref().ok_or("There is no capture open.")?;
+        use_image(&edit.image.packet)
+    }
+}
+
+#[tauri::command]
+pub fn load_edit_document(editor: State<'_, Editor>) -> Option<serde_json::Value> {
+    editor.0.lock().unwrap().as_ref()?.document.clone()
 }
 
 pub fn closed(app: &AppHandle) {
@@ -114,7 +167,29 @@ pub async fn copy_edited_image(
     };
     let session = editor.0.lock().unwrap();
     let edit = session.as_ref().ok_or("There is no capture to copy.")?;
-    clipboard::copy_rgba(edit.image.width, edit.image.height, pixels)
+    let image = &edit.image;
+    if !request.headers().contains_key("x-qapture-cropped") {
+        return clipboard::copy_rgba(image.width, image.height, pixels);
+    }
+    let (width, height, rgba) = cropped_pixels(pixels, image)?;
+    clipboard::copy_rgba(width, height, rgba)
+}
+
+fn cropped_pixels<'a>(packet: &'a [u8], image: &Image) -> Result<(i32, i32, &'a [u8]), String> {
+    let Some(header) = packet.get(..8) else {
+        return Err("The edited image has no size header.".into());
+    };
+    let width = i32::from_le_bytes(header[..4].try_into().unwrap());
+    let height = i32::from_le_bytes(header[4..].try_into().unwrap());
+    if width < 1
+        || height < 1
+        || width > image.width
+        || height > image.height
+        || packet.len() != 8 + width as usize * height as usize * 4
+    {
+        return Err("The edited image has invalid dimensions.".into());
+    }
+    Ok((width, height, &packet[8..]))
 }
 
 #[cfg(test)]
@@ -136,5 +211,22 @@ mod tests {
         );
         assert_eq!(&image.packet[..8], &[1, 0, 0, 0, 2, 0, 0, 0]);
         assert_eq!(&image.packet[8..], &[30, 20, 10, 255, 60, 50, 40, 255]);
+    }
+
+    #[test]
+    fn crop_packet_requires_exact_dimensions_and_size() {
+        let image = Image::from_packet(vec![
+            2, 0, 0, 0, 1, 0, 0, 0, 10, 20, 30, 255, 40, 50, 60, 255,
+        ])
+        .unwrap();
+        let valid = [1, 0, 0, 0, 1, 0, 0, 0, 10, 20, 30, 255];
+        assert_eq!(
+            cropped_pixels(&valid, &image),
+            Ok((1, 1, &[10, 20, 30, 255][..]))
+        );
+        assert!(cropped_pixels(&valid[..11], &image).is_err());
+        let mut outside = valid;
+        outside[0] = 3;
+        assert!(cropped_pixels(&outside, &image).is_err());
     }
 }
