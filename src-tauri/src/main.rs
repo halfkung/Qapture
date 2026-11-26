@@ -64,6 +64,11 @@ async fn set_shortcut(
 }
 
 #[tauri::command]
+async fn recover_shortcut(app: AppHandle, mode: Mode) -> Result<ShortcutStatus, String> {
+    app.state::<Shortcuts>().recover(&app, mode)
+}
+
+#[tauri::command]
 fn set_shortcut_recording(shortcuts: State<'_, Shortcuts>, recording: bool) {
     shortcuts.set_recording(recording);
 }
@@ -106,6 +111,7 @@ fn main() {
             start_capture,
             cancel_capture,
             set_shortcut,
+            recover_shortcut,
             set_shortcut_recording,
             editor::load_edit_image,
             editor::copy_edited_image,

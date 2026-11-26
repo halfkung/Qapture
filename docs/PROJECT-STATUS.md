@@ -2,6 +2,20 @@
 
 The prototype is implemented with Tauri 2, React, TypeScript, Vite, Tailwind CSS, and Rust. It includes tray capture, a single-instance dashboard, persistent shortcuts, native desktop capture and region selection, and native-resolution clipboard export. After the Phase 0 review, the capture UX preview added the initial quick editor.
 
+## 0.1.2 Windows demo
+
+Use `.local/release-0.1.2/Qapture.exe` to try the demo. Use `.local/release-0.1.2/Qapture_0.1.2_x64-setup.exe` to install. Quit earlier copies from the tray before launching. The installer uses the same application identifier and settings location.
+
+| Verification | Result |
+| --- | --- |
+| Automated source checks | Frontend lint, nine frontend tests, production build, Rust formatting, Clippy with warnings denied, and thirteen Rust tests passed. |
+| Automated Windows UI | An isolated build opened at 920 × 740. With two real Win32 hotkey conflicts, the idle dashboard and lower recorder had zero page and pane overflow in both themes at 920 × 740, 720 × 620 and 540 × 500. Recovery registered an available alternative for one action, restored the original for the other after its fixture released it, and both registered again after restart. |
+| Manual review | Reviewed the Windows dashboard screenshot for spacing, readability and visibility of both settings rows. |
+| Packaged executable | Verified both delivered files match their optimized build outputs and carry version 0.1.2. Launched the standalone executable and confirmed the Qapture dashboard window opened. |
+| Unexecuted | In-place installation, clean-machine installation and successful paste into a second application. The existing running Qapture and clipboard were preserved. |
+
+The proposed [1.0 release criteria](DEVELOPMENT-PLAN.md#proposed-10-release-criteria) cover export, editing, Windows qualification, and distribution.
+
 ## 0.1.1 release
 
 The standalone Windows executable is `.local/release-0.1.1/Qapture.exe`. The unsigned x64 NSIS installer is `.local/release-0.1.1/Qapture_0.1.1_x64-setup.exe`. The installer retains the original application identifier and settings location.

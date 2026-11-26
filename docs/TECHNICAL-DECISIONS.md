@@ -22,7 +22,9 @@ Use the Windows device-independent bitmap format to provide native-size pixels a
 
 Keep shortcut editing within the dashboard with a focusable key recorder. While the focused dashboard is recording, Qapture routes its own registered hotkeys into the recorder. Native validation and persistence remain in the shortcut service.
 
-Use a fixed-height dashboard shell with a separate content pane. Compact spacing fits the idle layout at the native minimum size. The pane remains scrollable when form content grows and keeps the scrollbar hidden.
+Open a 920 × 740 logical-pixel dashboard constrained by the monitor work area. Use a shorter banner in short windows and collapse the banner while editing at the minimum height. Reserve space for conflict actions. Keep the content pane accessible when magnification or exceptional content exceeds the available space.
+
+Preserve saved shortcuts on startup conflicts. User-initiated recovery retries the saved combination first, skips the other action's binding and tries alternatives only on an actual registration conflict. The Windows plugin exposes this native error as text. Keep that classification in the Rust service. Commit a replacement only after registration and settings persistence succeed.
 
 ## Selection and quick editor
 

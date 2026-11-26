@@ -10,6 +10,7 @@
     "allow-start-capture",
     "allow-cancel-capture",
     "allow-set-shortcut",
+    "allow-recover-shortcut",
     "allow-set-shortcut-recording"
   ]
 }

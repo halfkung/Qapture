@@ -34,6 +34,7 @@ export function App() {
   const [pendingShortcut, setPendingShortcut] = useState<CaptureMode>()
   const [error, setError] = useState('')
   const [shortcutError, setShortcutError] = useState('')
+  const [shortcutNotice, setShortcutNotice] = useState('')
   const [capturePending, setCapturePending] = useState(false)
   const editButtons = useRef<Partial<Record<CaptureMode, HTMLButtonElement | null>>>({})
   const shortcutRecorder = useRef<HTMLButtonElement>(null)
@@ -95,6 +96,7 @@ export function App() {
 
   async function capture(mode: CaptureMode) {
     setError('')
+    setShortcutNotice('')
     setCapturePending(true)
     try {
       await invoke('start_capture', { mode })
@@ -134,6 +136,23 @@ export function App() {
       closeEditor(mode)
     } catch (problem) {
       setShortcutError(String(problem))
+    } finally {
+      setPendingShortcut(undefined)
+    }
+  }
+
+  async function recoverShortcut(mode: CaptureMode) {
+    if (pendingShortcut !== undefined) return
+    setPendingShortcut(mode)
+    setError('')
+    setShortcutNotice('')
+    try {
+      const shortcuts = await invoke<ShortcutStatus>('recover_shortcut', { mode })
+      setInfo((current) => current && { ...current, shortcuts })
+      setShortcutNotice(`${actions[mode].setting} shortcut ready: ${keycaps(shortcuts.settings[mode]).join(' + ')}.`)
+      returnFocus.current = mode
+    } catch (problem) {
+      setError(String(problem))
     } finally {
       setPendingShortcut(undefined)
     }
@@ -220,6 +239,8 @@ export function App() {
                             closeEditor(mode)
                           } else {
                             setShortcutError('')
+                            setShortcutNotice('')
+                            setError('')
                             setDraft('')
                             setRecording(mode)
                           }
@@ -228,7 +249,13 @@ export function App() {
                       </button>
                     </div>
                   </div>
-                  {problem && <p className="shortcut-problem error">{problem}</p>}
+                  {problem && <div className="shortcut-problem">
+                    <span className="error">{problem}</span>
+                    {!isEditing && <button type="button" className="recover-shortcut"
+                      disabled={pendingShortcut !== undefined || recording !== undefined}
+                      aria-label={`Use available shortcut for ${actions[mode].setting.toLowerCase()}`}
+                      onClick={() => void recoverShortcut(mode)}>Use available shortcut</button>}
+                  </div>}
                   {isEditing && <form id={editorId} ref={shortcutEditor} className="shortcut-form"
                     onKeyDown={(event) => {
                       if (event.key === 'Escape' && pendingShortcut === undefined) {
@@ -260,6 +287,7 @@ export function App() {
             })}
             {shortcuts?.warning && <p role="alert" className="notice error">{shortcuts.warning}</p>}
           </div>
+          <p className="sr-only" role="status">{shortcutNotice}</p>
         </section>
 
         <div className="capture-status">

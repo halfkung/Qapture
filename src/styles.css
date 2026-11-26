@@ -49,7 +49,7 @@ button:disabled { opacity: .65; cursor: wait; }
 button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 
 .content-width {
-  width: min(660px, calc(100% - 64px));
+  width: min(800px, calc(100% - 64px));
   margin-inline: auto;
 }
 
@@ -92,7 +92,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--focus); out
   min-width: 0;
   overflow: auto;
   scrollbar-width: none;
-  padding: 23px max(32px, calc((100% - 660px) / 2)) 21px;
+  padding: 23px max(32px, calc((100% - 800px) / 2)) 21px;
 }
 .dashboard::-webkit-scrollbar { display: none; }
 
@@ -256,7 +256,8 @@ kbd {
 }
 
 .shortcut-button:hover, .shortcut-button[aria-expanded="true"] { background: var(--tint); }
-.shortcut-problem { padding: 0 14px 10px; font-size: 13px; overflow-wrap: anywhere; }
+.shortcut-problem { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; padding: 0 14px 8px; font-size: 13px; overflow-wrap: anywhere; }
+.recover-shortcut { color: var(--accent); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 
 .shortcut-form {
   margin: 0 10px 10px;
@@ -306,13 +307,22 @@ kbd {
   .dashboard { padding: 24px 20px 21px; }
 }
 
+@media (max-height: 660px) {
+  .brand { min-height: 46px; }
+  .dashboard { padding-block: 12px; }
+  .capture-hero { min-height: 80px; padding-block: 10px; }
+  .hero-art { width: 27%; }
+  .hero-copy p { margin-top: 4px; }
+  .capture-actions { margin-top: 8px; }
+  .capture-card { min-height: 72px; padding-block: 7px; }
+  .settings { margin-top: 12px; }
+  .settings-heading { margin-bottom: 6px; }
+  .shortcut-row { min-height: 42px; padding-block: 4px; }
+}
+
 @media (max-height: 545px) {
-  .dashboard { padding-block: 14px 12px; }
-  .capture-hero { min-height: 132px; }
-  .capture-card { min-height: 84px; padding-block: 9px; }
-  .settings { margin-top: 17px; }
-  .settings-heading { margin-bottom: 9px; }
-  .shortcut-row { min-height: 51px; }
+  .dashboard:has(.shortcut-form) .capture-hero { display: none; }
+  .dashboard:has(.shortcut-form) .capture-actions { margin-top: 0; }
 }
 
 @media (max-width: 470px) {

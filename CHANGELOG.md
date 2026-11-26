@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2 — 26 November 2026
+
+- Open the dashboard at 920 × 740 logical pixels, bounded by the monitor work area. Compact layouts fit both shortcut conflicts and the expanded recorder.
+- Show a concise registration error and let the user recover an unavailable shortcut in one click. Retry the saved chord first and persist an alternative only after Windows accepts it.
+
 ## 0.1.1 — 26 November 2026
 
 - Added a capture illustration and shortcut settings link to the dashboard.

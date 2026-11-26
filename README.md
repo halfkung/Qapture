@@ -14,6 +14,7 @@ Run the x64 NSIS installer for the new version. To update an existing installati
 2. Press **Ctrl+Shift+F9** and drag a region. The selection stays bright while the desktop around it is dimmed. Release the mouse to open the quick editor, where you can use a pen, rectangle, or arrow and then select **Copy image** or press **Ctrl+C**. Press **Esc** in the overlay to cancel or in the editor to close it.
 3. Press **Ctrl+Shift+F10** to copy the full desktop across all attached monitors.
 4. To change a shortcut, open Qapture from the tray. Choose **Edit** beside an action under **Keyboard shortcuts**, press the new combination on your keyboard, and select **Save**. Press **Esc** or select **Cancel** to discard the edit.
+5. If Windows reports **Shortcut already in use**, choose **Use available shortcut**. Qapture retries the displayed combination, then tries alternatives and displays the one it registered. To keep the exact combination, first release it in the other app. The dashboard capture buttons also work while a shortcut is unavailable.
 
 Paste into an image-capable application such as Paint. Qapture publishes the image to the Windows clipboard and requests exclusion from Windows clipboard history and cloud sync.
 

@@ -5,6 +5,7 @@ fn main() {
         "start_capture",
         "cancel_capture",
         "set_shortcut",
+        "recover_shortcut",
         "set_shortcut_recording",
         "load_edit_image",
         "copy_edited_image",
